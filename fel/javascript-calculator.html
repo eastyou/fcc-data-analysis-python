@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JavaScript Calculator</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: #1c1f26;
+      color: #f4f6fa;
+    }
+    #calculator {
+      width: min(340px, 92vw);
+      padding: 20px;
+      border-radius: 18px;
+      background: #252a34;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+    }
+    #display {
+      min-height: 74px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: flex-end;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+      border-radius: 12px;
+      background: #11151b;
+      color: #ffd479;
+      font-size: 1.9rem;
+      font-weight: 600;
+      overflow: hidden;
+      word-break: break-all;
+      text-align: right;
+    }
+    .keys {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    .keys button {
+      border: none;
+      border-radius: 10px;
+      padding: 16px 0;
+      font-size: 1.15rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: #f4f6fa;
+      background: #333a47;
+      transition: filter 0.12s ease, transform 0.06s ease;
+    }
+    .keys button:hover { filter: brightness(1.15); }
+    .keys button:active { transform: translateY(2px); }
+    #clear { background: #b33a3a; }
+    #equals { background: #2f7a5c; }
+    .op { background: #3f4a5c; }
+    #zero { grid-column: span 2; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="text/babel">
+    const { useCallback, useEffect, useState } = React;
+
+    const OPS = ["+", "-", "*", "/"];
+
+    function isOperator(ch) {
+      return OPS.indexOf(ch) !== -1;
+    }
+
+    function evaluate(expression) {
+      let expr = expression;
+      while (expr.length > 0 && isOperator(expr[expr.length - 1])) {
+        expr = expr.slice(0, -1);
+      }
+      if (!/^[0-9+\-*/.]+$/.test(expr) || expr.length === 0) return "0";
+      try {
+        const result = Function('"use strict";return (' + expr + ")")();
+        if (typeof result !== "number" || !isFinite(result)) return "0";
+        return String(Math.round(result * 1e10) / 1e10);
+      } catch (error) {
+        return "0";
+      }
+    }
+
+    function App() {
+      const [expression, setExpression] = useState("0");
+      const [justEvaluated, setJustEvaluated] = useState(false);
+
+      const appendDigit = useCallback((digit) => {
+        setExpression((prev) => {
+          if (justEvaluated) return digit === "0" ? "0" : digit;
+          if (prev === "0") return digit === "0" ? "0" : digit;
+          return prev + digit;
+        });
+        setJustEvaluated(false);
+      }, [justEvaluated]);
+
+      const appendOperator = useCallback((op) => {
+        setExpression((prev) => {
+          if (prev.endsWith("-") && op === "-") return prev;
+          const last = prev[prev.length - 1];
+          if (isOperator(last)) {
+            if (op === "-" && (last === "*" || last === "/")) return prev + op;
+            return prev.slice(0, -1) + op;
+          }
+          return prev + op;
+        });
+        setJustEvaluated(false);
+      }, []);
+
+      const appendDecimal = useCallback(() => {
+        setExpression((prev) => {
+          if (justEvaluated) return "0.";
+          const parts = prev.split(/[+\-*/]/);
+          const current = parts[parts.length - 1];
+          if (current.indexOf(".") !== -1) return prev;
+          if (current === "") return prev + "0.";
+          return prev + ".";
+        });
+        setJustEvaluated(false);
+      }, [justEvaluated]);
+
+      const equals = useCallback(() => {
+        setExpression((prev) => {
+          return evaluate(prev);
+        });
+        setJustEvaluated(true);
+      }, []);
+
+      const clear = useCallback(() => {
+        setExpression("0");
+        setJustEvaluated(false);
+      }, []);
+
+      useEffect(() => {
+        function onKeyDown(event) {
+          const key = event.key;
+          if (/^[0-9]$/.test(key)) appendDigit(key);
+          else if (key === ".") appendDecimal();
+          else if (key === "+" || key === "-" || key === "*" || key === "/") appendOperator(key);
+          else if (key === "Enter" || key === "=") equals();
+          else if (key === "Escape") clear();
+        }
+        document.addEventListener("keydown", onKeyDown);
+        return () => document.removeEventListener("keydown", onKeyDown);
+      }, [appendDigit, appendDecimal, appendOperator, equals, clear]);
+
+      return (
+        <div id="calculator">
+          <div id="display">{expression}</div>
+          <div className="keys">
+            <button id="clear" onClick={clear}>AC</button>
+            <button id="divide" className="op" onClick={() => appendOperator("/")}>/</button>
+            <button id="multiply" className="op" onClick={() => appendOperator("*")}>x</button>
+            <button id="subtract" className="op" onClick={() => appendOperator("-")}>-</button>
+
+            <button id="seven" onClick={() => appendDigit("7")}>7</button>
+            <button id="eight" onClick={() => appendDigit("8")}>8</button>
+            <button id="nine" onClick={() => appendDigit("9")}>9</button>
+            <button id="add" className="op" onClick={() => appendOperator("+")}>+</button>
+
+            <button id="four" onClick={() => appendDigit("4")}>4</button>
+            <button id="five" onClick={() => appendDigit("5")}>5</button>
+            <button id="six" onClick={() => appendDigit("6")}>6</button>
+            <button id="decimal" onClick={appendDecimal}>.</button>
+
+            <button id="one" onClick={() => appendDigit("1")}>1</button>
+            <button id="two" onClick={() => appendDigit("2")}>2</button>
+            <button id="three" onClick={() => appendDigit("3")}>3</button>
+            <button id="equals" onClick={equals}>=</button>
+
+            <button id="zero" onClick={() => appendDigit("0")}>0</button>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("app")).render(<App />);
+  </script>
+</body>
+</html>
