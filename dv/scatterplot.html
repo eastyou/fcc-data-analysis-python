@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Doping in Professional Cycling — Scatterplot</title>
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<style>
+  body { margin: 0; font-family: 'Helvetica Neue', Arial, sans-serif; background: #10151b; color: #e8eaed; }
+  #chart { max-width: 960px; margin: 0 auto; padding: 24px 16px 60px; }
+  #title { text-align: center; font-size: 26px; font-weight: 600; margin: 8px 0 4px; }
+  #subtitle { text-align: center; color: #9aa4b2; margin-bottom: 18px; font-size: 14px; }
+  .dot { stroke: #10151b; stroke-width: 1; opacity: .85; }
+  .dot:hover { opacity: 1; stroke: #fff; stroke-width: 2; }
+  .axis path, .axis line { stroke: #9aa4b2; }
+  .axis text { fill: #c8d0da; font-size: 12px; }
+  .axis-label { fill: #c8d0da; font-size: 13px; }
+  .legend text { fill: #c8d0da; font-size: 12px; }
+  #tooltip {
+    position: absolute; opacity: 0; pointer-events: none;
+    background: rgba(20, 24, 30, .95); border: 1px solid #4e9af1; color: #fff;
+    padding: 8px 10px; border-radius: 6px; font-size: 13px; line-height: 1.4;
+    box-shadow: 0 4px 14px rgba(0,0,0,.45); transition: opacity .12s;
+  }
+</style>
+</head>
+<body>
+<div id="chart">
+  <h1 id="title">Doping in Professional Bicycle Racing</h1>
+  <p id="subtitle">35 Fastest times up Alpe d'Huez</p>
+</div>
+<div id="tooltip"></div>
+<script>
+  const DATA_URL =
+    'https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenceData/master/cyclist-data.json';
+
+  fetch(DATA_URL)
+    .then((res) => {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    })
+    .then((data) => render(data))
+    .catch((err) => {
+      document.getElementById('subtitle').textContent = 'Data load failed: ' + err.message;
+    });
+
+  function render(dataset) {
+    const margin = { top: 30, right: 120, bottom: 70, left: 80 };
+    const width = 900 - margin.left - margin.right;
+    const height = 480 - margin.top - margin.bottom;
+
+    const svg = d3.select('#chart')
+      .append('svg')
+      .attr('width', width + margin.left + margin.right)
+      .attr('height', height + margin.top + margin.bottom);
+
+    const g = svg.append('g')
+      .attr('transform', `translate(${margin.left},${margin.top})`);
+
+    const parseTime = (t) => {
+      const [m, s] = t.split(':').map(Number);
+      return m * 60 + s;
+    };
+
+    const years = dataset.map((d) => d.Year);
+    const xScale = d3.scaleLinear()
+      .domain([d3.min(years) - 1, d3.max(years) + 1])
+      .range([0, width]);
+
+    const times = dataset.map((d) => parseTime(d.Time));
+    const yScale = d3.scaleLinear()
+      .domain([d3.max(times) + 10, d3.min(times) - 10])
+      .range([height, 0]);
+
+    const color = d3.scaleOrdinal()
+      .domain(['doping', 'clean'])
+      .range(['#ff6b6b', '#4ecdc4']);
+
+    const tooltip = d3.select('#tooltip');
+
+    g.selectAll('.dot')
+      .data(dataset)
+      .enter()
+      .append('circle')
+      .attr('class', 'dot')
+      .attr('cx', (d) => xScale(d.Year))
+      .attr('cy', (d) => yScale(parseTime(d.Time)))
+      .attr('r', 6)
+      .attr('data-x', (d) => d.Year)
+      .attr('data-y', (d) => parseTime(d.Time))
+      .attr('fill', (d) => (d.Doping ? color('doping') : color('clean')))
+      .on('mouseover', function (event, d) {
+        tooltip
+          .attr('data-year', d.Year)
+          .style('opacity', 1)
+          .html(
+            `<strong>${d.Name}</strong> (${d.Nationality})<br>` +
+            `Year: ${d.Year} &nbsp; Time: ${d.Time}` +
+            (d.Doping ? `<br><em>${d.Doping}</em>` : '<br><em>No doping allegations</em>')
+          );
+        const box = this.getBoundingClientRect();
+        tooltip
+          .style('left', `${box.left + window.scrollX + 12}px`)
+          .style('top', `${box.top + window.scrollY - 10}px`);
+      })
+      .on('mouseout', () => tooltip.style('opacity', 0));
+
+    const xAxis = d3.axisBottom(xScale).tickFormat(d3.format('d'));
+    g.append('g')
+      .attr('id', 'x-axis')
+      .attr('class', 'axis')
+      .attr('transform', `translate(0,${height})`)
+      .call(xAxis);
+
+    const fmt = (sec) => `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}`;
+    const yAxis = d3.axisLeft(yScale).tickFormat(fmt);
+    g.append('g')
+      .attr('id', 'y-axis')
+      .attr('class', 'axis')
+      .call(yAxis);
+
+    g.append('text')
+      .attr('class', 'axis-label')
+      .attr('x', width / 2)
+      .attr('y', height + 50)
+      .attr('text-anchor', 'middle')
+      .text('Year');
+
+    g.append('text')
+      .attr('class', 'axis-label')
+      .attr('transform', 'rotate(-90)')
+      .attr('x', -height / 2)
+      .attr('y', -55)
+      .attr('text-anchor', 'middle')
+      .text('Time (mm:ss)');
+
+    const legend = g.append('g').attr('class', 'legend')
+      .attr('transform', `translate(${width + 20},${height / 2 - 20})`);
+
+    const items = [
+      { label: 'Doping allegations', value: 'doping' },
+      { label: 'No allegations', value: 'clean' },
+    ];
+    items.forEach((item, i) => {
+      const row = legend.append('g').attr('transform', `translate(0,${i * 24})`);
+      row.append('circle').attr('r', 6).attr('fill', color(item.value));
+      row.append('text').attr('x', 12).attr('y', 4).text(item.label);
+    });
+  }
+</script>
+</body>
+</html>
