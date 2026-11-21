@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Issue Tracker</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 34px 18px 60px;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: #f4f7fa; color: #1f2a33;
+    }
+    .wrap { max-width: 880px; margin: 0 auto; }
+    h1 { margin: 0 0 6px; font-size: 1.7rem; }
+    p.sub { margin: 0 0 24px; color: #5d6c78; }
+    .panel {
+      background: #fff; border-radius: 12px; padding: 20px;
+      box-shadow: 0 8px 22px rgba(20, 40, 60, 0.07); margin-bottom: 20px;
+    }
+    h2 { margin: 0 0 14px; font-size: 1.05rem; letter-spacing: 0.02em; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; }
+    input, select, textarea {
+      padding: 9px 11px; border: 1px solid #cfd9e0; border-radius: 8px;
+      font-size: 0.95rem; font-family: inherit; background: #fbfcfd; flex: 1 1 160px;
+    }
+    textarea { min-height: 70px; resize: vertical; }
+    button {
+      padding: 9px 16px; border: none; border-radius: 8px; cursor: pointer;
+      background: #2f6f8f; color: #fff; font-weight: 600; font-size: 0.92rem;
+    }
+    button.ghost { background: #e8eef2; color: #2b3a45; }
+    button.danger { background: #b23b3b; }
+    .issue {
+      border: 1px solid #e3ebf0; border-radius: 10px; padding: 14px 16px; margin-bottom: 12px;
+    }
+    .issue h3 { margin: 0 0 6px; font-size: 1rem; }
+    .issue .meta { font-size: 0.82rem; color: #62727f; margin-bottom: 8px; }
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 999px;
+      font-size: 0.74rem; font-weight: 700; background: #e6f4ec; color: #256b45;
+    }
+    .badge.closed { background: #f6e7e7; color: #9c3434; }
+    .empty { color: #7d8c98; font-size: 0.92rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Issue Tracker</h1>
+    <p class="sub">Create projects, file issues, and move them between open and closed.</p>
+
+    <section class="panel">
+      <h2>New project</h2>
+      <div class="row">
+        <input id="project-name" type="text" placeholder="Project name" />
+        <button id="create-project" type="button">Create project</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>File an issue</h2>
+      <div class="row" style="margin-bottom:10px;">
+        <select id="project-select"></select>
+      </div>
+      <div class="row" style="margin-bottom:10px;">
+        <input id="issue-title" type="text" placeholder="Issue title" />
+        <input id="issue-created-by" type="text" placeholder="Created by" />
+      </div>
+      <div class="row" style="margin-bottom:10px;">
+        <input id="issue-assigned-to" type="text" placeholder="Assigned to (optional)" />
+        <select id="issue-status">
+          <option value="open">Open</option>
+          <option value="closed">Closed</option>
+        </select>
+      </div>
+      <div class="row" style="margin-bottom:10px;">
+        <textarea id="issue-text" placeholder="Describe the issue..."></textarea>
+      </div>
+      <button id="submit-issue" type="button">Submit issue</button>
+    </section>
+
+    <section class="panel">
+      <h2>Issues</h2>
+      <div class="row" style="margin-bottom:14px;">
+        <select id="filter">
+          <option value="all">All issues</option>
+          <option value="open">Open only</option>
+          <option value="closed">Closed only</option>
+        </select>
+      </div>
+      <div id="issue-list"><p class="empty">No issues yet.</p></div>
+    </section>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "issue-tracker-state";
+
+    const state = load();
+    const projectSelect = document.getElementById("project-select");
+    const filterSelect = document.getElementById("filter");
+    const issueList = document.getElementById("issue-list");
+
+    function load() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return { projects: [], issues: [] };
+        const parsed = JSON.parse(raw);
+        return { projects: parsed.projects || [], issues: parsed.issues || [] };
+      } catch (error) {
+        return { projects: [], issues: [] };
+      }
+    }
+
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function renderProjects() {
+      projectSelect.innerHTML = "";
+      if (state.projects.length === 0) {
+        const option = document.createElement("option");
+        option.textContent = "No projects yet";
+        option.value = "";
+        projectSelect.appendChild(option);
+        return;
+      }
+      for (const project of state.projects) {
+        const option = document.createElement("option");
+        option.value = project;
+        option.textContent = project;
+        projectSelect.appendChild(option);
+      }
+    }
+
+    function renderIssues() {
+      issueList.innerHTML = "";
+      const selected = filterSelect.value;
+      const visible = state.issues.filter((issue) => selected === "all" || issue.status === selected);
+      if (visible.length === 0) {
+        const p = document.createElement("p");
+        p.className = "empty";
+        p.textContent = "No issues match this filter.";
+        issueList.appendChild(p);
+        return;
+      }
+      for (const issue of visible) {
+        const card = document.createElement("div");
+        card.className = "issue";
+
+        const title = document.createElement("h3");
+        title.textContent = issue.title;
+        const badge = document.createElement("span");
+        badge.className = "badge" + (issue.status === "closed" ? " closed" : "");
+        badge.textContent = issue.status.toUpperCase();
+        title.appendChild(document.createTextNode(" "));
+        title.appendChild(badge);
+
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        meta.textContent = issue.project + " · created by " + issue.created_by +
+          (issue.assigned_to ? " · assigned to " + issue.assigned_to : " · unassigned") +
+          (issue.created_on ? " · " + issue.created_on : "");
+        const text = document.createElement("div");
+        text.textContent = issue.text;
+
+        const actions = document.createElement("div");
+        actions.className = "row";
+        actions.style.marginTop = "10px";
+
+        const toggle = document.createElement("button");
+        toggle.className = "ghost";
+        toggle.textContent = issue.status === "open" ? "Close issue" : "Reopen";
+        toggle.addEventListener("click", () => {
+          issue.status = issue.status === "open" ? "closed" : "open";
+          save();
+          renderIssues();
+        });
+
+        const assign = document.createElement("button");
+        assign.className = "ghost";
+        assign.textContent = "Assign";
+        assign.addEventListener("click", () => {
+          const name = window.prompt("Assign this issue to:", issue.assigned_to || "");
+          if (name === null) return;
+          issue.assigned_to = name.trim();
+          save();
+          renderIssues();
+        });
+
+        const remove = document.createElement("button");
+        remove.className = "danger";
+        remove.textContent = "Delete";
+        remove.addEventListener("click", () => {
+          state.issues = state.issues.filter((item) => item.id !== issue.id);
+          save();
+          renderIssues();
+        });
+
+        actions.append(toggle, assign, remove);
+        card.append(title, meta, text, actions);
+        issueList.appendChild(card);
+      }
+    }
+
+    document.getElementById("create-project").addEventListener("click", () => {
+      const nameInput = document.getElementById("project-name");
+      const name = nameInput.value.trim();
+      if (!name) return;
+      if (!state.projects.includes(name)) state.projects.push(name);
+      nameInput.value = "";
+      save();
+      renderProjects();
+      projectSelect.value = name;
+    });
+
+    document.getElementById("submit-issue").addEventListener("click", () => {
+      const titleValue = document.getElementById("issue-title").value.trim();
+      const textValue = document.getElementById("issue-text").value.trim();
+      const createdBy = document.getElementById("issue-created-by").value.trim();
+      const assignedTo = document.getElementById("issue-assigned-to").value.trim();
+      const status = document.getElementById("issue-status").value;
+      const project = projectSelect.value;
+
+      if (!project || !titleValue || !textValue || !createdBy) {
+        window.alert("Project, title, text and created by are required.");
+        return;
+      }
+
+      state.issues.push({
+        id: Date.now() + "-" + Math.random().toString(16).slice(2),
+        project,
+        title: titleValue,
+        text: textValue,
+        created_by: createdBy,
+        assigned_to: assignedTo,
+        status,
+        created_on: new Date().toISOString().slice(0, 10)
+      });
+      document.getElementById("issue-title").value = "";
+      document.getElementById("issue-text").value = "";
+      save();
+      renderIssues();
+    });
+
+    filterSelect.addEventListener("change", renderIssues);
+
+    renderProjects();
+    renderIssues();
+  </script>
+</body>
+</html>
