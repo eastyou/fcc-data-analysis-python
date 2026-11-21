@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Random Quote Machine</title>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: #1b2430;
+      color: #f6f1e9;
+      transition: background 0.6s ease;
+    }
+    #quote-box {
+      width: min(560px, 90vw);
+      padding: 36px 34px 26px;
+      border-radius: 16px;
+      background: #f6f1e9;
+      color: #1b2430;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+      transition: opacity 0.35s ease;
+    }
+    #quote-box.fading { opacity: 0.15; }
+    #text {
+      margin: 0 0 14px;
+      font-size: 1.55rem;
+      line-height: 1.45;
+      font-weight: 500;
+    }
+    #author {
+      margin: 0 0 26px;
+      text-align: right;
+      font-size: 1rem;
+      opacity: 0.75;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .btn {
+      border: none;
+      cursor: pointer;
+      border-radius: 10px;
+      padding: 11px 18px;
+      font-size: 0.95rem;
+      color: #fff;
+      background: #2f4858;
+      transition: transform 0.15s ease, background 0.3s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn:hover { transform: translateY(-2px); }
+    .btn:active { transform: translateY(0); }
+    #tweet-quote { background: #1d9bf0; }
+  </style>
+</head>
+<body>
+  <div id="quote-box">
+    <p id="text"></p>
+    <p id="author"></p>
+    <div class="row">
+      <a id="tweet-quote" class="btn" target="_blank" rel="noopener noreferrer" href="https://twitter.com/intent/tweet">
+        Tweet
+      </a>
+      <button id="new-quote" class="btn" type="button">New quote</button>
+    </div>
+  </div>
+
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="text/babel">
+    const { useEffect, useMemo, useState } = React;
+
+    const QUOTES = [
+      { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
+      { text: "Life is what happens when you're busy making other plans.", author: "John Lennon" },
+      { text: "In the middle of difficulty lies opportunity.", author: "Albert Einstein" },
+      { text: "Whether you think you can or you think you can't, you're right.", author: "Henry Ford" },
+      { text: "It does not matter how slowly you go as long as you do not stop.", author: "Confucius" },
+      { text: "Everything you've ever wanted is on the other side of fear.", author: "George Addair" },
+      { text: "Success is not final, failure is not fatal: it is the courage to continue that counts.", author: "Winston Churchill" },
+      { text: "Believe you can and you're halfway there.", author: "Theodore Roosevelt" },
+      { text: "The best time to plant a tree was 20 years ago. The second best time is now.", author: "Chinese Proverb" },
+      { text: "Do what you can, with what you have, where you are.", author: "Theodore Roosevelt" }
+    ];
+
+    const COLORS = ["#1b2430", "#2f4858", "#3d2c3b", "#243b34", "#3a2d1f", "#1f2f4a"];
+
+    function App() {
+      const [index, setIndex] = useState(0);
+      const [fading, setFading] = useState(false);
+      const [color, setColor] = useState(COLORS[0]);
+
+      const quote = QUOTES[index];
+
+      useEffect(() => {
+        document.body.style.background = color;
+      }, [color]);
+
+      const tweetUrl = useMemo(
+        () => "https://twitter.com/intent/tweet?text=" + encodeURIComponent('"' + quote.text + '" — ' + quote.author),
+        [quote]
+      );
+
+      function newQuote() {
+        setFading(true);
+        window.setTimeout(() => {
+          setIndex((prev) => {
+            if (QUOTES.length < 2) return prev;
+            let next = prev;
+            while (next === prev) next = Math.floor(Math.random() * QUOTES.length);
+            return next;
+          });
+          setColor(COLORS[Math.floor(Math.random() * COLORS.length)]);
+          setFading(false);
+        }, 300);
+      }
+
+      return (
+        <div id="quote-box" className={fading ? "fading" : ""}>
+          <p id="text">“{quote.text}”</p>
+          <p id="author">— {quote.author}</p>
+          <div className="row">
+            <a id="tweet-quote" className="btn" href={tweetUrl} target="_blank" rel="noopener noreferrer">Tweet</a>
+            <button id="new-quote" className="btn" type="button" onClick={newQuote}>New quote</button>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
