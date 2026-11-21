@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Map Data Across the Globe</title>
+<style>
+  :root { --bg:#060a12; --line:#1f2b40; --text:#e6eefb; --muted:#8194b0; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--text); }
+  header { padding:16px 22px; border-bottom:1px solid var(--line); display:flex; gap:20px; align-items:baseline; flex-wrap:wrap; }
+  h1 { margin:0; font-size:18px; }
+  p { margin:0; color:var(--muted); font-size:12px; }
+  #map { display:block; width:100%; height:calc(100vh - 72px); }
+  .country { fill:#12203a; stroke:#28405f; stroke-width:.5; }
+  .landing { fill:#38bdf8; fill-opacity:.55; stroke:#7dd3fc; stroke-width:.6; }
+  #tip { position:fixed; pointer-events:none; background:#0b1220; border:1px solid var(--line); border-radius:8px; padding:6px 9px; font-size:12px; opacity:0; transition:opacity .1s; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Meteorite Landings Across the Globe</h1>
+  <p>Circle size = mass. Hover a landing for details.</p>
+</header>
+<svg id="map"></svg>
+<div id="tip"></div>
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+<script>
+  const landings = [
+    { name: "Hoba", country: "Namibia", lon: 17.93, lat: -19.59, mass: 60000, year: 1920 },
+    { name: "Cape York", country: "Greenland", lon: -64.9, lat: 76.1, mass: 58200, year: 1818 },
+    { name: "Campo del Cielo", country: "Argentina", lon: -61.7, lat: -27.9, mass: 50000, year: 1576 },
+    { name: "Canyon Diablo", country: "United States", lon: -111.02, lat: 35.03, mass: 30000, year: 1891 },
+    { name: "Armanty", country: "China", lon: 87.4, lat: 45.6, mass: 28000, year: 1898 },
+    { name: "Gibeon", country: "Namibia", lon: 17.75, lat: -25.5, mass: 26000, year: 1836 },
+    { name: "Chupaderos", country: "Mexico", lon: -105.2, lat: 27.6, mass: 24200, year: 1852 },
+    { name: "Mundrabilla", country: "Australia", lon: 124.9, lat: -30.5, mass: 22000, year: 1911 },
+    { name: "Morito", country: "Mexico", lon: -107.0, lat: 29.2, mass: 10000, year: 1600 },
+    { name: "Willamette", country: "United States", lon: -122.6, lat: 45.3, mass: 15600, year: 1902 },
+    { name: "Sikhote-Alin", country: "Russia", lon: 134.7, lat: 46.2, mass: 23000, year: 1947 },
+    { name: "Derrick Peak", country: "Antarctica", lon: 156.4, lat: -80.1, mass: 12500, year: 1962 },
+    { name: "Tucson", country: "United States", lon: -110.9, lat: 32.2, mass: 9750, year: 1850 },
+    { name: "Brahin", country: "Belarus", lon: 30.2, lat: 52.5, mass: 8200, year: 1807 },
+    { name: "Brenham", country: "United States", lon: -98.9, lat: 37.6, mass: 4300, year: 1882 },
+    { name: "Jiddat al Harasis", country: "Oman", lon: 56.3, lat: 20.3, mass: 3800, year: 1954 },
+    { name: "Nantan", country: "China", lon: 107.7, lat: 24.8, mass: 9500, year: 1958 },
+    { name: "Tamdakht", country: "Morocco", lon: -7.0, lat: 31.0, mass: 2100, year: 2008 },
+    { name: "Pultusk", country: "Poland", lon: 21.1, lat: 52.7, mass: 2500, year: 1868 },
+    { name: "Ensisheim", country: "France", lon: 7.35, lat: 47.87, mass: 127, year: 1492 },
+    { name: "Nakhla", country: "Egypt", lon: 30.3, lat: 30.9, mass: 10, year: 1911 },
+    { name: "Murchison", country: "Australia", lon: 145.2, lat: -36.6, mass: 108, year: 1969 },
+    { name: "Allende", country: "Mexico", lon: -105.3, lat: 26.9, mass: 2000, year: 1969 },
+    { name: "Sutter's Mill", country: "United States", lon: -120.9, lat: 38.9, mass: 1.4, year: 2012 },
+    { name: "Chelyabinsk", country: "Russia", lon: 61.3, lat: 55.1, mass: 1000, year: 2013 }
+  ];
+
+  const width = window.innerWidth;
+  const height = window.innerHeight - 72;
+  const svg = d3.select("#map").attr("viewBox", [0, 0, width, height]);
+  const projection = d3.geoNaturalEarth1().fitSize([width, height], { type: "Sphere" });
+  const path = d3.geoPath(projection);
+
+  svg.append("path").datum({ type: "Sphere" }).attr("d", path).attr("fill", "#081120").attr("stroke", "#1f2b40");
+
+  fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json")
+    .then((response) => response.json())
+    .then((world) => {
+      const countries = topojson.feature(world, world.objects.countries);
+      svg.append("g").selectAll("path").data(countries.features).join("path").attr("class", "country").attr("d", path);
+      drawLandings();
+    })
+    .catch(() => drawLandings());
+
+  function drawLandings() {
+    const maxMass = d3.max(landings, (d) => d.mass);
+    const radius = d3.scaleSqrt().domain([1, maxMass]).range([1.5, 18]);
+    const tip = document.getElementById("tip");
+
+    svg.append("g")
+      .selectAll("circle")
+      .data(landings)
+      .join("circle")
+      .attr("class", "landing")
+      .attr("cx", (d) => projection([d.lon, d.lat])[0])
+      .attr("cy", (d) => projection([d.lon, d.lat])[1])
+      .attr("r", (d) => radius(d.mass))
+      .on("mousemove", (event, d) => {
+        tip.style.opacity = 1;
+        tip.style.left = event.clientX + 14 + "px";
+        tip.style.top = event.clientY + 14 + "px";
+        tip.innerHTML = `<strong>${d.name}</strong><br>${d.country} · ${d.year}<br>Mass: ${d.mass.toLocaleString()} g`;
+      })
+      .on("mouseleave", () => { tip.style.opacity = 0; });
+  }
+</script>
+</body>
+</html>
