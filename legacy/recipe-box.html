@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recipe Box</title>
+<style>
+  :root { --bg:#0b1220; --card:#16213a; --line:#2b3a55; --text:#e6edf7; --muted:#96a3b8; --accent:#f59e0b; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--text); }
+  header { padding:22px 24px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; }
+  h1 { margin:0; font-size:20px; }
+  button { font:inherit; cursor:pointer; border-radius:8px; border:1px solid #b45309; background:var(--accent); color:#1c1207; padding:8px 12px; font-weight:600; }
+  button.ghost { background:transparent; color:var(--text); border-color:var(--line); }
+  main { max-width:960px; margin:0 auto; padding:22px; display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:14px; }
+  .recipe { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:10px; }
+  .recipe h2 { font-size:16px; margin:0; }
+  ul { margin:0; padding-left:18px; color:var(--muted); font-size:14px; }
+  ol { margin:0; padding-left:18px; font-size:14px; line-height:1.5; }
+  .actions { display:flex; gap:8px; margin-top:auto; }
+  dialog { border:1px solid var(--line); border-radius:14px; background:var(--card); color:var(--text); width:min(520px, 92vw); }
+  dialog::backdrop { background:rgba(0,0,0,.6); }
+  form { display:grid; gap:10px; }
+  input, textarea { width:100%; font:inherit; border-radius:8px; border:1px solid var(--line); background:#0b1220; color:var(--text); padding:9px 10px; }
+  textarea { min-height:90px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🍳 Recipe Box</h1>
+  <button id="addBtn">+ Add recipe</button>
+</header>
+<main id="list"></main>
+
+<dialog id="editor">
+  <form id="form" method="dialog">
+    <input id="name" placeholder="Recipe name" required maxlength="60">
+    <textarea id="ingredients" placeholder="One ingredient per line" required></textarea>
+    <textarea id="directions" placeholder="Cooking directions" required></textarea>
+    <div class="actions">
+      <button type="submit" value="save">Save</button>
+      <button type="button" class="ghost" id="cancel">Cancel</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+  const STORAGE_KEY = "fcc-recipe-box";
+  const defaults = [
+    {
+      id: 1,
+      name: "Classic Pancakes",
+      ingredients: ["1 1/2 cups flour", "3 1/2 tsp baking powder", "1 tbsp sugar", "1 1/4 cups milk", "1 egg", "3 tbsp butter"],
+      directions: "Whisk dry ingredients. Add milk, egg and melted butter. Cook on a hot griddle until bubbles form, then flip."
+    },
+    {
+      id: 2,
+      name: "Tomato Pasta",
+      ingredients: ["200g spaghetti", "2 tomatoes", "2 cloves garlic", "2 tbsp olive oil", "Basil", "Salt"],
+      directions: "Boil pasta. Sauté garlic in oil, add chopped tomatoes, simmer 10 minutes, toss with pasta and basil."
+    }
+  ];
+  let recipes = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null") || defaults;
+  let editingId = null;
+
+  const save = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(recipes));
+  const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+
+  function render() {
+    const list = document.getElementById("list");
+    list.innerHTML = recipes.map((recipe) => `
+      <article class="recipe">
+        <h2>${escapeHtml(recipe.name)}</h2>
+        <div>
+          <strong>Ingredients</strong>
+          <ul>${recipe.ingredients.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+        </div>
+        <div>
+          <strong>Directions</strong>
+          <ol>${recipe.directions.split(/\n+/).map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>
+        </div>
+        <div class="actions">
+          <button class="ghost" data-edit="${recipe.id}">Edit</button>
+          <button class="ghost" data-delete="${recipe.id}">Delete</button>
+        </div>
+      </article>
+    `).join("") || "<p>No recipes yet. Add your first one!</p>";
+  }
+
+  const dialog = document.getElementById("editor");
+
+  document.getElementById("addBtn").addEventListener("click", () => {
+    editingId = null;
+    document.getElementById("form").reset();
+    dialog.showModal();
+  });
+
+  document.getElementById("cancel").addEventListener("click", () => dialog.close());
+
+  document.getElementById("list").addEventListener("click", (event) => {
+    const editId = event.target.dataset.edit;
+    const deleteId = event.target.dataset.delete;
+    if (editId) {
+      const recipe = recipes.find((item) => item.id === Number(editId));
+      editingId = recipe.id;
+      document.getElementById("name").value = recipe.name;
+      document.getElementById("ingredients").value = recipe.ingredients.join("\n");
+      document.getElementById("directions").value = recipe.directions;
+      dialog.showModal();
+    }
+    if (deleteId) {
+      recipes = recipes.filter((item) => item.id !== Number(deleteId));
+      save();
+      render();
+    }
+  });
+
+  document.getElementById("form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const name = document.getElementById("name").value.trim();
+    const ingredients = document.getElementById("ingredients").value.split("\n").map((s) => s.trim()).filter(Boolean);
+    const directions = document.getElementById("directions").value.trim();
+    if (!name || ingredients.length === 0 || !directions) return;
+    if (editingId) {
+      const recipe = recipes.find((item) => item.id === editingId);
+      Object.assign(recipe, { name, ingredients, directions });
+    } else {
+      recipes.push({ id: Date.now(), name, ingredients, directions });
+    }
+    save();
+    dialog.close();
+    render();
+  });
+
+  render();
+</script>
+</body>
+</html>
