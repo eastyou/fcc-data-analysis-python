@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Drum Machine</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: #16181d;
+      color: #f2f4f8;
+    }
+    #drum-machine {
+      width: min(520px, 92vw);
+      padding: 26px;
+      border-radius: 18px;
+      background: #22262e;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+    }
+    #display {
+      min-height: 54px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      border-radius: 10px;
+      background: #0f1216;
+      color: #7ce0c3;
+      font-size: 1.2rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .pad-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .drum-pad {
+      aspect-ratio: 1 / 1;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(180deg, #3a404b, #2a2f37);
+      color: #fff;
+      font-size: 1.4rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 6px 0 #14171c, 0 10px 22px rgba(0, 0, 0, 0.35);
+      transition: transform 0.06s ease, box-shadow 0.06s ease, background 0.15s ease;
+      user-select: none;
+    }
+    .drum-pad:active,
+    .drum-pad.active {
+      transform: translateY(4px);
+      box-shadow: 0 2px 0 #14171c;
+      background: linear-gradient(180deg, #55637a, #3a4454);
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="text/babel">
+    const { useEffect, useRef, useState } = React;
+
+    const BASE = "https://cdn.freecodecamp.org/testable-projects-fcc/audio/";
+    const PADS = [
+      { key: "Q", name: "Heater 1", file: "Heater-1.mp3" },
+      { key: "W", name: "Heater 2", file: "Heater-2.mp3" },
+      { key: "E", name: "Heater 3", file: "Heater-3.mp3" },
+      { key: "A", name: "Heater 4", file: "Heater-4_1.mp3" },
+      { key: "S", name: "Clap", file: "Clap.mp3" },
+      { key: "D", name: "Open HH", file: "Open-HH.mp3" },
+      { key: "Z", name: "Kick n' Hat", file: "Kick_n_Hat.mp3" },
+      { key: "X", name: "Kick", file: "Kick.mp3" },
+      { key: "C", name: "Closed HH", file: "Closed-HH.mp3" }
+    ];
+
+    function Pad({ pad, onPlay, activeKey }) {
+      const audioRef = useRef(null);
+
+      function play() {
+        const audio = audioRef.current;
+        if (!audio) return;
+        audio.currentTime = 0;
+        const promise = audio.play();
+        if (promise && typeof promise.catch === "function") {
+          promise.catch(() => {});
+        }
+        onPlay(pad);
+      }
+
+      return (
+        <button
+          type="button"
+          className={"drum-pad" + (activeKey === pad.key ? " active" : "")}
+          id={pad.name.toLowerCase().replace(/\s+/g, "-")}
+          onClick={play}
+        >
+          {pad.key}
+          <audio
+            ref={audioRef}
+            className="clip"
+            id={pad.key}
+            src={BASE + pad.file}
+            preload="auto"
+          />
+        </button>
+      );
+    }
+
+    function App() {
+      const [display, setDisplay] = useState("Press a key");
+      const [activeKey, setActiveKey] = useState("");
+      const timerRef = useRef(null);
+
+      const handlePlay = (pad) => {
+        setDisplay(pad.name);
+        setActiveKey(pad.key);
+        window.clearTimeout(timerRef.current);
+        timerRef.current = window.setTimeout(() => setActiveKey(""), 180);
+      };
+
+      useEffect(() => {
+        function onKeyDown(event) {
+          const key = String(event.key || "").toUpperCase();
+          const pad = PADS.find((p) => p.key === key);
+          if (!pad) return;
+          const audio = document.getElementById(pad.key);
+          if (!audio) return;
+          audio.currentTime = 0;
+          const promise = audio.play();
+          if (promise && typeof promise.catch === "function") promise.catch(() => {});
+          handlePlay(pad);
+        }
+        document.addEventListener("keydown", onKeyDown);
+        return () => {
+          document.removeEventListener("keydown", onKeyDown);
+          window.clearTimeout(timerRef.current);
+        };
+      }, []);
+
+      return (
+        <div id="drum-machine">
+          <div id="display">{display}</div>
+          <div className="pad-grid">
+            {PADS.map((pad) => (
+              <Pad key={pad.key} pad={pad} onPlay={handlePlay} activeKey={activeKey} />
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("app")).render(<App />);
+  </script>
+</body>
+</html>
