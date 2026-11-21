@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TwitchTV JSON API</title>
+<style>
+  :root { --bg:#0e0e10; --card:#18181b; --line:#2f2f35; --text:#efeff1; --muted:#adadb8; --accent:#9147ff; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--text); }
+  header { padding:20px 22px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  h1 { margin:0 auto 0 0; font-size:19px; }
+  .badge { font-size:12px; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:4px 10px; }
+  main { max-width:760px; margin:0 auto; padding:18px; display:grid; gap:10px; }
+  .channel { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 14px; display:grid; grid-template-columns:56px 1fr auto; gap:12px; align-items:center; }
+  .avatar { width:56px; height:56px; border-radius:50%; background:linear-gradient(135deg,#9147ff,#3b82f6); display:grid; place-items:center; font-weight:700; }
+  .name { font-weight:600; }
+  .status { font-size:13px; color:var(--muted); }
+  .live { color:#f43f5e; font-weight:600; }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#4b5563; margin-right:6px; }
+  .dot.on { background:#f43f5e; }
+  a { color:var(--accent); text-decoration:none; font-size:13px; }
+  details { max-width:760px; margin:0 auto; padding:0 18px 24px; color:var(--muted); font-size:13px; }
+  input { width:100%; font:inherit; background:#0e0e10; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:8px 10px; margin:4px 0 10px; }
+  button { font:inherit; cursor:pointer; border-radius:8px; border:1px solid var(--line); background:#26262c; color:var(--text); padding:7px 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎮 TwitchTV Channels</h1>
+  <span class="badge" id="mode">Demo mode</span>
+</header>
+<main id="channels"></main>
+
+<details>
+  <summary>Use live Twitch data</summary>
+  <p>Create an app at <a href="https://dev.twitch.tv/console" target="_blank" rel="noopener">dev.twitch.tv</a>, then paste its Client ID and an app access token. They stay in your browser only.</p>
+  <input id="clientId" placeholder="Client ID">
+  <input id="token" placeholder="OAuth app access token">
+  <button id="save">Save and refresh</button>
+</details>
+
+<script>
+  const channels = ["freecodecamp", "noobs2ninjas", "brunofin", "comster404", "habathcx", "robotcaleb", "ESL_SC2", "OgamingSC2"];
+  const demo = [
+    { name: "freecodecamp", live: true, game: "Science & Technology", viewers: 1280 },
+    { name: "noobs2ninjas", live: false, game: "", viewers: 0 },
+    { name: "brunofin", live: false, game: "", viewers: 0 },
+    { name: "comster404", live: false, game: "", viewers: 0 },
+    { name: "habathcx", live: true, game: "Software and Game Development", viewers: 340 },
+    { name: "robotcaleb", live: false, game: "", viewers: 0 },
+    { name: "ESL_SC2", live: true, game: "StarCraft II", viewers: 8600 },
+    { name: "OgamingSC2", live: false, game: "", viewers: 0 }
+  ];
+
+  const stored = {
+    clientId: localStorage.getItem("twitch-client-id") || "",
+    token: localStorage.getItem("twitch-token") || ""
+  };
+
+  function render(rows, liveMode) {
+    document.getElementById("mode").textContent = liveMode ? "Live data" : "Demo mode";
+    document.getElementById("channels").innerHTML = rows.map((row) => `
+      <article class="channel">
+        <div class="avatar">${row.name.slice(0, 2).toUpperCase()}</div>
+        <div>
+          <div class="name">${row.name}</div>
+          <div class="status">
+            <span class="dot ${row.live ? "on" : ""}"></span>
+            ${row.live ? `<span class="live">LIVE</span> · ${escapeHtml(row.game || "Unknown game")}` : "Offline"}
+            ${row.live && row.viewers ? " · " + row.viewers.toLocaleString() + " viewers" : ""}
+          </div>
+        </div>
+        <a href="https://www.twitch.tv/${encodeURIComponent(row.name)}" target="_blank" rel="noopener">Open</a>
+      </article>
+    `).join("");
+  }
+
+  function escapeHtml(text) {
+    return String(text).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+  }
+
+  async function loadLive(clientId, token) {
+    const headers = { "Client-Id": clientId, Authorization: "Bearer " + token };
+    const query = "user_login=" + channels.map((name) => encodeURIComponent(name)).join("&user_login=");
+    const streamResponse = await fetch("https://api.twitch.tv/helix/streams?" + query, { headers });
+    if (!streamResponse.ok) throw new Error("Twitch request failed");
+    const streamData = await streamResponse.json();
+    const liveMap = new Map(streamData.data.map((item) => [item.user_login.toLowerCase(), item]));
+    const rows = channels.map((name) => {
+      const live = liveMap.get(name.toLowerCase());
+      return { name, live: Boolean(live), game: live ? live.game_name : "", viewers: live ? live.viewer_count : 0 };
+    });
+    render(rows, true);
+  }
+
+  document.getElementById("clientId").value = stored.clientId;
+  document.getElementById("token").value = stored.token;
+
+  document.getElementById("save").addEventListener("click", async () => {
+    const clientId = document.getElementById("clientId").value.trim();
+    const token = document.getElementById("token").value.trim();
+    localStorage.setItem("twitch-client-id", clientId);
+    localStorage.setItem("twitch-token", token);
+    if (!clientId || !token) { render(demo, false); return; }
+    try {
+      await loadLive(clientId, token);
+    } catch (error) {
+      document.getElementById("mode").textContent = "API error — showing demo data";
+      render(demo, false);
+    }
+  });
+
+  render(demo, false);
+  if (stored.clientId && stored.token) {
+    loadLive(stored.clientId, stored.token).catch(() => render(demo, false));
+  }
+</script>
+</body>
+</html>
