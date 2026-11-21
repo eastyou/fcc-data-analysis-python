@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Anonymous Message Board</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 32px 18px 60px;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: #eef2f5; color: #1f2a33;
+    }
+    .wrap { max-width: 820px; margin: 0 auto; }
+    h1 { margin: 0 0 6px; font-size: 1.7rem; }
+    p.sub { margin: 0 0 22px; color: #5d6c78; }
+    .panel { background: #fff; border-radius: 12px; padding: 18px; margin-bottom: 18px; box-shadow: 0 8px 20px rgba(20, 40, 60, 0.06); }
+    h2 { margin: 0 0 12px; font-size: 1rem; }
+    .row { display: flex; gap: 9px; flex-wrap: wrap; margin-bottom: 10px; }
+    input, textarea, select {
+      padding: 9px 11px; border: 1px solid #cfd9e0; border-radius: 8px;
+      font-size: 0.94rem; font-family: inherit; background: #fbfcfd; flex: 1 1 170px;
+    }
+    textarea { min-height: 64px; resize: vertical; flex-basis: 100%; }
+    button { padding: 8px 14px; border: none; border-radius: 8px; cursor: pointer; background: #2f6f8f; color: #fff; font-weight: 600; font-size: 0.88rem; }
+    button.ghost { background: #e8eef2; color: #2b3a45; }
+    button.danger { background: #b23b3b; }
+    .thread { border: 1px solid #e3ebf0; border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
+    .thread h3 { margin: 0 0 4px; font-size: 0.98rem; }
+    .meta { font-size: 0.78rem; color: #6b7b88; margin-bottom: 8px; }
+    .replies { margin: 10px 0 0; padding-left: 0; list-style: none; }
+    .replies li { padding: 8px 10px; background: #f6f9fb; border-radius: 7px; margin-bottom: 6px; font-size: 0.88rem; }
+    .flag { color: #a4483f; font-size: 0.75rem; font-weight: 700; margin-left: 6px; }
+    .empty { color: #7d8c98; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Anonymous Message Board</h1>
+    <p class="sub">Boards, threads and replies. Everyone is anonymous.</p>
+
+    <section class="panel">
+      <h2>Boards</h2>
+      <div class="row">
+        <input id="board-name" type="text" placeholder="New board name" />
+        <button id="create-board" type="button">Create board</button>
+      </div>
+      <div class="row">
+        <select id="board-select"></select>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>New thread</h2>
+      <div class="row">
+        <textarea id="thread-text" placeholder="Thread text"></textarea>
+      </div>
+      <div class="row">
+        <input id="thread-password" type="password" placeholder="Delete password" />
+        <button id="create-thread" type="button">Post thread</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Threads</h2>
+      <div id="threads"></div>
+    </section>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "anonymous-board";
+
+    const boardSelect = document.getElementById("board-select");
+    const threadsElement = document.getElementById("threads");
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : null;
+        if (!parsed || !Array.isArray(parsed.boards)) return { boards: [] };
+        return parsed;
+      } catch (error) {
+        return { boards: [] };
+      }
+    }
+
+    const state = loadState();
+
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function currentBoard() {
+      return state.boards.find((board) => board.name === boardSelect.value) || null;
+    }
+
+    function now() {
+      return new Date().toISOString();
+    }
+
+    function renderBoards() {
+      boardSelect.innerHTML = "";
+      if (state.boards.length === 0) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "No boards yet";
+        boardSelect.appendChild(option);
+        return;
+      }
+      for (const board of state.boards) {
+        const option = document.createElement("option");
+        option.value = board.name;
+        option.textContent = board.name;
+        boardSelect.appendChild(option);
+      }
+    }
+
+    function makeButton(label, className, handler) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = label;
+      if (className) button.className = className;
+      button.addEventListener("click", handler);
+      return button;
+    }
+
+    function renderThreads() {
+      threadsElement.innerHTML = "";
+      const board = currentBoard();
+      if (!board) {
+        threadsElement.innerHTML = '<p class="empty">Create a board to get started.</p>';
+        return;
+      }
+      const threads = [...board.threads].sort((a, b) => new Date(b.bumped_on) - new Date(a.bumped_on));
+      if (threads.length === 0) {
+        threadsElement.innerHTML = '<p class="empty">No threads on this board yet.</p>';
+        return;
+      }
+
+      for (const thread of threads) {
+        const card = document.createElement("div");
+        card.className = "thread";
+
+        const title = document.createElement("h3");
+        title.textContent = thread.text;
+
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        meta.textContent = "created " + thread.created_on.slice(0, 16).replace("T", " ") +
+          " · bumped " + thread.bumped_on.slice(0, 16).replace("T", " ");
+
+        const replies = document.createElement("ul");
+        replies.className = "replies";
+        const visibleReplies = thread.replies.slice(-3);
+        for (const reply of visibleReplies) {
+          const item = document.createElement("li");
+          item.textContent = reply.text;
+          if (reply.reported) {
+            const flag = document.createElement("span");
+            flag.className = "flag";
+            flag.textContent = "REPORTED";
+            item.appendChild(flag);
+          }
+          replies.appendChild(item);
+        }
+
+        const replyInput = document.createElement("input");
+        replyInput.type = "text";
+        replyInput.placeholder = "Reply text";
+        const replyPassword = document.createElement("input");
+        replyPassword.type = "password";
+        replyPassword.placeholder = "Password";
+        replyPassword.style.flex = "0 1 130px";
+
+        const replyRow = document.createElement("div");
+        replyRow.className = "row";
+        replyRow.append(
+          replyInput,
+          replyPassword,
+          makeButton("Reply", "", () => {
+            const text = replyInput.value.trim();
+            const password = replyPassword.value.trim();
+            if (!text || !password) {
+              window.alert("Reply text and password are required.");
+              return;
+            }
+            thread.replies.push({ text, delete_password: password, created_on: now(), reported: false });
+            thread.bumped_on = now();
+            save();
+            renderThreads();
+          })
+        );
+
+        const actions = document.createElement("div");
+        actions.className = "row";
+        actions.append(
+          makeButton("Report", "ghost", () => {
+            thread.reported = true;
+            save();
+            renderThreads();
+          }),
+          makeButton("Delete", "danger", () => {
+            const password = window.prompt("Enter the thread password:");
+            if (password === null) return;
+            if (password !== thread.delete_password) {
+              window.alert("Incorrect password.");
+              return;
+            }
+            board.threads = board.threads.filter((item) => item.id !== thread.id);
+            save();
+            renderThreads();
+          })
+        );
+
+        card.append(title, meta, replies, replyRow, actions);
+        threadsElement.appendChild(card);
+      }
+    }
+
+    document.getElementById("create-board").addEventListener("click", () => {
+      const input = document.getElementById("board-name");
+      const name = input.value.trim();
+      if (!name) return;
+      if (!state.boards.some((board) => board.name === name)) {
+        state.boards.push({ name, threads: [] });
+        save();
+        renderBoards();
+        boardSelect.value = name;
+      }
+      input.value = "";
+      renderThreads();
+    });
+
+    document.getElementById("create-thread").addEventListener("click", () => {
+      const board = currentBoard();
+      if (!board) {
+        window.alert("Create and select a board first.");
+        return;
+      }
+      const text = document.getElementById("thread-text").value.trim();
+      const password = document.getElementById("thread-password").value.trim();
+      if (!text || !password) {
+        window.alert("Thread text and password are required.");
+        return;
+      }
+      board.threads.push({
+        id: Date.now() + "-" + Math.random().toString(16).slice(2),
+        text,
+        delete_password: password,
+        created_on: now(),
+        bumped_on: now(),
+        reported: false,
+        replies: []
+      });
+      document.getElementById("thread-text").value = "";
+      save();
+      renderThreads();
+    });
+
+    boardSelect.addEventListener("change", renderThreads);
+    renderBoards();
+    renderThreads();
+  </script>
+</body>
+</html>
