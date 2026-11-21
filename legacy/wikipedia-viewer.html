@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wikipedia Viewer</title>
+<style>
+  :root { --bg:#f7f7f4; --card:#fff; --line:#d8d8d0; --text:#202122; --muted:#666; --accent:#1a73e8; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: Georgia, "Times New Roman", serif; background:var(--bg); color:var(--text); min-height:100vh; }
+  header { padding:48px 20px 24px; display:flex; flex-direction:column; align-items:center; gap:14px; }
+  h1 { margin:0; font-size:28px; letter-spacing:.5px; }
+  .search { display:flex; gap:8px; width:min(560px, 92vw); }
+  input { flex:1; font:inherit; font-family:-apple-system, "Segoe UI", sans-serif; padding:11px 14px; border:1px solid var(--line); border-radius:999px; }
+  button { font:inherit; font-family:-apple-system, "Segoe UI", sans-serif; cursor:pointer; border-radius:999px; border:1px solid var(--line); background:#fff; padding:10px 16px; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  #random { font-size:14px; color:var(--accent); text-decoration:none; }
+  main { max-width:760px; margin:0 auto; padding:10px 20px 50px; display:grid; gap:12px; }
+  article { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px 18px; }
+  article h2 { margin:0 0 6px; font-size:18px; }
+  article h2 a { color:var(--accent); text-decoration:none; }
+  article p { margin:0; color:#444; line-height:1.55; font-family:-apple-system, "Segoe UI", sans-serif; font-size:14px; }
+  #status { text-align:center; color:var(--muted); font-family:-apple-system, "Segoe UI", sans-serif; font-size:14px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Wikipedia Viewer</h1>
+  <div class="search">
+    <input id="query" placeholder="Search Wikipedia" aria-label="Search Wikipedia">
+    <button class="primary" id="search">Search</button>
+  </div>
+  <a id="random" href="https://en.wikipedia.org/wiki/Special:Random" target="_blank" rel="noopener">Or read a random article →</a>
+</header>
+<main>
+  <p id="status">Type a topic to search the free encyclopedia.</p>
+  <section id="results"></section>
+</main>
+<script>
+  const resultsEl = document.getElementById("results");
+  const statusEl = document.getElementById("status");
+
+  function cleanSnippet(html) {
+    return html.replace(/<[^>]+>/g, "");
+  }
+
+  async function search() {
+    const term = document.getElementById("query").value.trim();
+    if (!term) return;
+    statusEl.textContent = "Searching…";
+    resultsEl.innerHTML = "";
+    try {
+      const url = "https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=" +
+        encodeURIComponent(term) + "&format=json&origin=*&srlimit=8";
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Search failed");
+      const data = await response.json();
+      const hits = data.query.search;
+      if (!hits.length) {
+        statusEl.textContent = "No articles found for “" + term + "”.";
+        return;
+      }
+      statusEl.textContent = hits.length + " result(s) for “" + term + "”";
+      resultsEl.innerHTML = hits.map((hit) => `
+        <article>
+          <h2><a href="https://en.wikipedia.org/wiki/${encodeURIComponent(hit.title)}" target="_blank" rel="noopener">${hit.title}</a></h2>
+          <p>${cleanSnippet(hit.snippet)}…</p>
+        </article>
+      `).join("");
+    } catch (error) {
+      statusEl.textContent = "Could not reach Wikipedia. Check your connection and try again.";
+    }
+  }
+
+  document.getElementById("search").addEventListener("click", search);
+  document.getElementById("query").addEventListener("keydown", (event) => { if (event.key === "Enter") search(); });
+</script>
+</body>
+</html>
