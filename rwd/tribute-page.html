@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tribute Page — Ada Lovelace</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      background: #f4efe7;
+      color: #2c2620;
+      line-height: 1.7;
+    }
+    #main {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 48px 22px 60px;
+    }
+    #title {
+      margin: 0 0 6px;
+      font-size: clamp(2rem, 5vw, 3rem);
+      text-align: center;
+      letter-spacing: 0.02em;
+    }
+    .subtitle {
+      margin: 0 0 36px;
+      text-align: center;
+      font-style: italic;
+      color: #6b5d50;
+    }
+    #img-div {
+      margin: 0 0 36px;
+      padding: 18px;
+      background: #fffdf9;
+      border: 1px solid #e4dacd;
+      border-radius: 10px;
+      text-align: center;
+    }
+    #image {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      margin: 0 auto;
+      border-radius: 6px;
+      filter: sepia(0.18);
+    }
+    #img-caption {
+      margin: 14px 0 0;
+      font-size: 0.92rem;
+      color: #6b5d50;
+    }
+    #tribute-info h2 {
+      font-size: 1.4rem;
+      margin-top: 34px;
+    }
+    #tribute-info ul { padding-left: 22px; }
+    #tribute-info li { margin-bottom: 12px; }
+    blockquote {
+      margin: 34px 0;
+      padding: 18px 24px;
+      border-left: 4px solid #b08d57;
+      background: #fffdf9;
+      font-style: italic;
+      color: #4a3f35;
+    }
+    .more {
+      margin-top: 40px;
+      text-align: center;
+      font-size: 1.02rem;
+    }
+    #tribute-link {
+      color: #8a5a1f;
+      font-weight: 700;
+      text-decoration: none;
+      border-bottom: 2px solid #d9c3a3;
+    }
+    #tribute-link:hover { border-bottom-color: #8a5a1f; }
+  </style>
+</head>
+<body>
+  <main id="main">
+    <h1 id="title">Ada Lovelace</h1>
+    <p class="subtitle">The first computer programmer — 1815 to 1852</p>
+
+    <figure id="img-div">
+      <img
+        id="image"
+        src="https://upload.wikimedia.org/wikipedia/commons/a/a2/Ada_Lovelace_portrait.jpg"
+        alt="Portrait of Ada Lovelace"
+      />
+      <figcaption id="img-caption">
+        Ada Lovelace, mathematician and writer, best known for her work on Charles Babbage's Analytical Engine.
+      </figcaption>
+    </figure>
+
+    <div id="tribute-info">
+      <h2>A life ahead of its time</h2>
+      <ul>
+        <li><strong>1815</strong> — Augusta Ada Byron is born in London, the daughter of the poet Lord Byron.</li>
+        <li><strong>1833</strong> — She meets Charles Babbage and becomes fascinated by his Difference Engine.</li>
+        <li><strong>1842</strong> — She translates Luigi Menabrea's notes on the Analytical Engine.</li>
+        <li><strong>1843</strong> — Her extensive notes are published, including the famous Note G describing an algorithm for computing Bernoulli numbers.</li>
+        <li><strong>1852</strong> — Ada dies at the age of 36, leaving behind ideas far ahead of her century.</li>
+      </ul>
+
+      <blockquote>
+        “The Analytical Engine weaves algebraic patterns just as the Jacquard loom weaves flowers and leaves.”
+      </blockquote>
+
+      <p>
+        Ada Lovelace imagined that a machine could do more than crunch numbers: it could manipulate
+        symbols, compose music, and follow general-purpose instructions. That insight is why she is
+        remembered as the first programmer.
+      </p>
+    </div>
+
+    <p class="more">
+      Read more about her life on
+      <a id="tribute-link" href="https://en.wikipedia.org/wiki/Ada_Lovelace" target="_blank" rel="noopener noreferrer">
+        Wikipedia
+      </a>.
+    </p>
+  </main>
+</body>
+</html>
