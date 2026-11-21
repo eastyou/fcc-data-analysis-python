@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Monthly Global Land-Surface Temperature — Heat Map</title>
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<style>
+  body { margin: 0; font-family: 'Helvetica Neue', Arial, sans-serif; background: #0f141a; color: #e8eaed; }
+  #chart { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
+  #title { text-align: center; font-size: 26px; font-weight: 600; margin: 8px 0 4px; }
+  #description { text-align: center; color: #9aa4b2; margin-bottom: 18px; font-size: 14px; }
+  .cell:hover { stroke: #0f141a; stroke-width: 2; }
+  .axis path, .axis line { stroke: #9aa4b2; }
+  .axis text { fill: #c8d0da; font-size: 11px; }
+  .axis-label { fill: #c8d0da; font-size: 13px; }
+  #legend text { fill: #c8d0da; font-size: 11px; }
+  #tooltip {
+    position: absolute; opacity: 0; pointer-events: none;
+    background: rgba(20, 24, 30, .95); border: 1px solid #4e9af1; color: #fff;
+    padding: 8px 10px; border-radius: 6px; font-size: 13px; line-height: 1.4;
+    box-shadow: 0 4px 14px rgba(0,0,0,.45); transition: opacity .12s;
+  }
+</style>
+</head>
+<body>
+<div id="chart">
+  <h1 id="title">Monthly Global Land-Surface Temperature</h1>
+  <p id="description">1753 – 2015: base temperature 8.66℃</p>
+</div>
+<div id="tooltip"></div>
+<script>
+  const DATA_URL =
+    'https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenceData/master/global-temperature.json';
+
+  fetch(DATA_URL)
+    .then((res) => {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    })
+    .then((data) => render(data.baseTemperature, data.monthlyVariance))
+    .catch((err) => {
+      document.getElementById('description').textContent = 'Data load failed: ' + err.message;
+    });
+
+  function render(baseTemp, monthly) {
+    const margin = { top: 30, right: 30, bottom: 110, left: 90 };
+    const width = 1000 - margin.left - margin.right;
+    const height = 520 - margin.top - margin.bottom;
+
+    const years = monthly.map((d) => d.year);
+    const minYear = d3.min(years);
+    const maxYear = d3.max(years);
+    const yearCount = maxYear - minYear + 1;
+
+    const cellW = width / yearCount;
+    const cellH = height / 12;
+
+    const svg = d3.select('#chart')
+      .append('svg')
+      .attr('width', width + margin.left + margin.right)
+      .attr('height', height + margin.top + margin.bottom);
+
+    const g = svg.append('g')
+      .attr('transform', `translate(${margin.left},${margin.top})`);
+
+    const xScale = d3.scaleLinear()
+      .domain([minYear, maxYear + 1])
+      .range([0, width]);
+
+    const yScale = d3.scaleLinear()
+      .domain([0, 12])
+      .range([0, height]);
+
+    const temps = monthly.map((d) => baseTemp + d.variance);
+    const colorScale = d3.scaleQuantize()
+      .domain([d3.min(temps), d3.max(temps)])
+      .range(d3.schemeRdYlBu[9].slice().reverse());
+
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'];
+
+    const tooltip = d3.select('#tooltip');
+
+    g.selectAll('.cell')
+      .data(monthly)
+      .enter()
+      .append('rect')
+      .attr('class', 'cell')
+      .attr('x', (d) => xScale(d.year))
+      .attr('y', (d) => yScale(d.month - 1))
+      .attr('width', cellW)
+      .attr('height', cellH)
+      .attr('data-month', (d) => d.month - 1)
+      .attr('data-year', (d) => d.year)
+      .attr('data-temp', (d) => baseTemp + d.variance)
+      .attr('fill', (d) => colorScale(baseTemp + d.variance))
+      .on('mouseover', function (event, d) {
+        tooltip
+          .attr('data-year', d.year)
+          .style('opacity', 1)
+          .html(
+            `<strong>${d.year} – ${monthNames[d.month - 1]}</strong><br>` +
+            `${(baseTemp + d.variance).toFixed(1)}℃<br>` +
+            `Variance: ${d.variance.toFixed(1)}℃`
+          );
+        const box = this.getBoundingClientRect();
+        tooltip
+          .style('left', `${box.left + window.scrollX + 10}px`)
+          .style('top', `${box.top + window.scrollY - 40}px`);
+      })
+      .on('mouseout', () => tooltip.style('opacity', 0));
+
+    const xAxis = d3.axisBottom(xScale)
+      .tickValues(d3.range(minYear, maxYear + 1, 10))
+      .tickFormat(d3.format('d'));
+    g.append('g')
+      .attr('id', 'x-axis')
+      .attr('class', 'axis')
+      .attr('transform', `translate(0,${height})`)
+      .call(xAxis);
+
+    const yAxis = d3.axisLeft(yScale)
+      .tickValues(d3.range(0, 12))
+      .tickFormat((m) => monthNames[m].slice(0, 3));
+    g.append('g')
+      .attr('id', 'y-axis')
+      .attr('class', 'axis')
+      .call(yAxis);
+
+    g.append('text')
+      .attr('class', 'axis-label')
+      .attr('x', width / 2)
+      .attr('y', height + 45)
+      .attr('text-anchor', 'middle')
+      .text('Year');
+
+    g.append('text')
+      .attr('class', 'axis-label')
+      .attr('transform', 'rotate(-90)')
+      .attr('x', -height / 2)
+      .attr('y', -65)
+      .attr('text-anchor', 'middle')
+      .text('Month');
+
+    // 图例
+    const legendWidth = 400;
+    const legendHeight = 16;
+    const legend = svg.append('g')
+      .attr('id', 'legend')
+      .attr('transform', `translate(${margin.left + width / 2 - legendWidth / 2},${margin.top + height + 55})`);
+
+    const colors = colorScale.range();
+    const step = legendWidth / colors.length;
+    colors.forEach((c, i) => {
+      legend.append('rect')
+        .attr('x', i * step)
+        .attr('y', 0)
+        .attr('width', step)
+        .attr('height', legendHeight)
+        .attr('fill', c);
+    });
+
+    const domain = colorScale.domain();
+    legend.append('text')
+      .attr('x', 0)
+      .attr('y', legendHeight + 16)
+      .text(`${domain[0].toFixed(1)}℃`);
+    legend.append('text')
+      .attr('x', legendWidth)
+      .attr('y', legendHeight + 16)
+      .attr('text-anchor', 'end')
+      .text(`${domain[1].toFixed(1)}℃`);
+  }
+</script>
+</body>
+</html>
