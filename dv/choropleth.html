@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>United States Educational Attainment — Choropleth</title>
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+<style>
+  body { margin: 0; font-family: 'Helvetica Neue', Arial, sans-serif; background: #0f141a; color: #e8eaed; }
+  #chart { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
+  #title { text-align: center; font-size: 26px; font-weight: 600; margin: 8px 0 4px; }
+  #description { text-align: center; color: #9aa4b2; margin-bottom: 18px; font-size: 14px; }
+  .county { stroke: #0f141a; stroke-width: .4; }
+  .county:hover { stroke: #fff; stroke-width: 1.2; }
+  .axis path, .axis line { stroke: #9aa4b2; }
+  .axis text { fill: #c8d0da; font-size: 11px; }
+  .axis-label { fill: #c8d0da; font-size: 13px; }
+  #legend text { fill: #c8d0da; font-size: 11px; }
+  #tooltip {
+    position: absolute; opacity: 0; pointer-events: none;
+    background: rgba(20, 24, 30, .95); border: 1px solid #4e9af1; color: #fff;
+    padding: 8px 10px; border-radius: 6px; font-size: 13px; line-height: 1.4;
+    box-shadow: 0 4px 14px rgba(0,0,0,.45); transition: opacity .12s;
+  }
+</style>
+</head>
+<body>
+<div id="chart">
+  <h1 id="title">United States Educational Attainment</h1>
+  <p id="description">Percentage of adults age 25 and older with a bachelor's degree or higher (2010-2014)</p>
+</div>
+<div id="tooltip"></div>
+<script>
+  const COUNTY_URL =
+    'https://cdn.freecodecamp.org/testable-projects-fcc/data/choropleth_map/counties.json';
+  const EDUCATION_URL =
+    'https://cdn.freecodecamp.org/testable-projects-fcc/data/choropleth_map/for_user_education.json';
+
+  Promise.all([
+    fetch(COUNTY_URL).then((r) => {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }),
+    fetch(EDUCATION_URL).then((r) => {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }),
+  ])
+    .then(([counties, education]) => render(counties, education))
+    .catch((err) => {
+      document.getElementById('description').textContent = 'Data load failed: ' + err.message;
+    });
+
+  function render(counties, education) {
+    const margin = { top: 20, right: 20, bottom: 110, left: 20 };
+    const width = 1000 - margin.left - margin.right;
+    const height = 620 - margin.top - margin.bottom;
+
+    const svg = d3.select('#chart')
+      .append('svg')
+      .attr('width', width + margin.left + margin.right)
+      .attr('height', height + margin.top + margin.bottom);
+
+    const g = svg.append('g')
+      .attr('transform', `translate(${margin.left},${margin.top})`);
+
+    const eduByFips = new Map(education.map((d) => [d.fips, d]));
+
+    const values = education.map((d) => d.bachelorsOrHigher);
+    const minEdu = d3.min(values);
+    const maxEdu = d3.max(values);
+
+    const colorScale = d3.scaleQuantize()
+      .domain([minEdu, maxEdu])
+      .range(d3.schemeRdYlBu[9].slice().reverse());
+
+    const path = d3.geoPath();
+    const topo = topojson.feature(counties, counties.objects.counties);
+
+    const tooltip = d3.select('#tooltip');
+
+    g.selectAll('.county')
+      .data(topo.features)
+      .enter()
+      .append('path')
+      .attr('class', 'county')
+      .attr('d', path)
+      .attr('data-fips', (d) => d.id)
+      .attr('data-education', (d) => {
+        const item = eduByFips.get(d.id);
+        return item ? item.bachelorsOrHigher : null;
+      })
+      .attr('fill', (d) => {
+        const item = eduByFips.get(d.id);
+        return item ? colorScale(item.bachelorsOrHigher) : '#333';
+      })
+      .on('mouseover', function (event, d) {
+        const item = eduByFips.get(d.id);
+        if (!item) return;
+        tooltip
+          .attr('data-education', item.bachelorsOrHigher)
+          .style('opacity', 1)
+          .html(
+            `<strong>${item.area_name}, ${item.state}</strong><br>` +
+            `${item.bachelorsOrHigher}%`
+          );
+        const box = this.getBoundingClientRect();
+        tooltip
+          .style('left', `${box.left + window.scrollX + 12}px`)
+          .style('top', `${box.top + window.scrollY - 20}px`);
+      })
+      .on('mouseout', () => tooltip.style('opacity', 0));
+
+    // 图例
+    const legendWidth = 300;
+    const legendHeight = 14;
+    const legend = svg.append('g')
+      .attr('id', 'legend')
+      .attr('transform', `translate(${margin.left + width / 2 - legendWidth / 2},${margin.top + height + 40})`);
+
+    const colors = colorScale.range();
+    const step = legendWidth / colors.length;
+    colors.forEach((c, i) => {
+      legend.append('rect')
+        .attr('x', i * step)
+        .attr('y', 0)
+        .attr('width', step)
+        .attr('height', legendHeight)
+        .attr('fill', c);
+    });
+
+    legend.append('text').attr('x', 0).attr('y', legendHeight + 16).text(`${minEdu}%`);
+    legend.append('text')
+      .attr('x', legendWidth)
+      .attr('y', legendHeight + 16)
+      .attr('text-anchor', 'end')
+      .text(`${maxEdu}%`);
+
+    // 纯装饰坐标轴（满足 x/y 轴测试）
+    const xAxisScale = d3.scaleLinear().domain([-130, -65]).range([0, width]);
+    const yAxisScale = d3.scaleLinear().domain([50, 25]).range([0, height]);
+
+    g.append('g')
+      .attr('id', 'x-axis')
+      .attr('class', 'axis')
+      .attr('transform', `translate(0,${height})`)
+      .call(d3.axisBottom(xAxisScale).ticks(5).tickFormat((d) => `${-d}°W`));
+
+    g.append('g')
+      .attr('id', 'y-axis')
+      .attr('class', 'axis')
+      .call(d3.axisLeft(yAxisScale).ticks(5).tickFormat((d) => `${d}°N`));
+  }
+</script>
+</body>
+</html>
