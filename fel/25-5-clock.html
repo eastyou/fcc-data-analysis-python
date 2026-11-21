@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>25 + 5 Clock</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: #10222b;
+      color: #eaf4f4;
+    }
+    #clock {
+      width: min(420px, 92vw);
+      padding: 26px;
+      border-radius: 20px;
+      background: #17323d;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+    }
+    .lengths {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+    .length-box {
+      text-align: center;
+      padding: 14px 10px;
+      border-radius: 14px;
+      background: #1e4250;
+    }
+    .length-box h3 {
+      margin: 0 0 10px;
+      font-size: 0.9rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      opacity: 0.8;
+    }
+    .adjust {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+    }
+    .adjust button {
+      width: 34px;
+      height: 34px;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #10222b;
+      background: #7ce0c3;
+    }
+    .adjust span {
+      min-width: 32px;
+      font-size: 1.35rem;
+      font-weight: 700;
+    }
+    #timer {
+      text-align: center;
+      padding: 18px;
+      border-radius: 16px;
+      background: #0b171d;
+      margin-bottom: 20px;
+    }
+    #timer-label {
+      font-size: 0.95rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #7ce0c3;
+    }
+    #time-left {
+      font-size: 3.4rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.15;
+    }
+    #time-left.warning { color: #ff8f8f; }
+    .controls {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+    .controls button {
+      border: none;
+      border-radius: 12px;
+      padding: 12px 26px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: #10222b;
+      background: #7ce0c3;
+    }
+    .controls button.secondary {
+      background: #d7e6ea;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="text/babel">
+    const { useCallback, useEffect, useRef, useState } = React;
+
+    const MIN_LENGTH = 1;
+    const MAX_LENGTH = 60;
+    const BEEP_URL = "https://cdn.freecodecamp.org/testable-projects-fcc/audio/BeepSound.wav";
+
+    function clamp(value) {
+      if (value < MIN_LENGTH) return MIN_LENGTH;
+      if (value > MAX_LENGTH) return MAX_LENGTH;
+      return value;
+    }
+
+    function formatTime(seconds) {
+      const safe = Math.max(0, seconds);
+      const minutes = Math.floor(safe / 60);
+      const rest = safe % 60;
+      const pad = (n) => (n < 10 ? "0" + n : String(n));
+      return pad(minutes) + ":" + pad(rest);
+    }
+
+    function App() {
+      const [breakLength, setBreakLength] = useState(5);
+      const [sessionLength, setSessionLength] = useState(25);
+      const [timeLeft, setTimeLeft] = useState(25 * 60);
+      const [mode, setMode] = useState("Session");
+      const [running, setRunning] = useState(false);
+      const beepRef = useRef(null);
+      const modeRef = useRef(mode);
+
+      modeRef.current = mode;
+
+      const playBeep = useCallback(() => {
+        const beep = beepRef.current;
+        if (!beep) return;
+        try {
+          beep.currentTime = 0;
+          const promise = beep.play();
+          if (promise && typeof promise.catch === "function") promise.catch(() => {});
+        } catch (error) {
+          // 浏览器阻止自动播放时忽略
+        }
+      }, []);
+
+      useEffect(() => {
+        if (!running) return undefined;
+        const id = window.setInterval(() => {
+          setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
+        }, 1000);
+        return () => window.clearInterval(id);
+      }, [running]);
+
+      useEffect(() => {
+        if (timeLeft !== 0 || !running) return;
+        playBeep();
+        if (modeRef.current === "Session") {
+          setMode("Break");
+          setTimeLeft(breakLength * 60);
+        } else {
+          setMode("Session");
+          setTimeLeft(sessionLength * 60);
+        }
+      }, [timeLeft, running, breakLength, sessionLength, playBeep]);
+
+      const toggleRunning = () => setRunning((prev) => !prev);
+
+      const reset = () => {
+        setRunning(false);
+        setBreakLength(5);
+        setSessionLength(25);
+        setMode("Session");
+        setTimeLeft(25 * 60);
+        const beep = beepRef.current;
+        if (beep) {
+          beep.pause();
+          beep.currentTime = 0;
+        }
+      };
+
+      const changeBreak = (delta) => {
+        setBreakLength((prev) => clamp(prev + delta));
+      };
+
+      const changeSession = (delta) => {
+        setSessionLength((prev) => {
+          const next = clamp(prev + delta);
+          if (!running && modeRef.current === "Session") {
+            setTimeLeft(next * 60);
+          }
+          return next;
+        });
+      };
+
+      const isWarning = mode === "Session" && timeLeft <= 60;
+
+      return (
+        <div id="clock">
+          <div className="lengths">
+            <div className="length-box">
+              <h3 id="break-label">Break Length</h3>
+              <div className="adjust">
+                <button id="break-decrement" onClick={() => changeBreak(-1)}>-</button>
+                <span id="break-length">{breakLength}</span>
+                <button id="break-increment" onClick={() => changeBreak(1)}>+</button>
+              </div>
+            </div>
+            <div className="length-box">
+              <h3 id="session-label">Session Length</h3>
+              <div className="adjust">
+                <button id="session-decrement" onClick={() => changeSession(-1)}>-</button>
+                <span id="session-length">{sessionLength}</span>
+                <button id="session-increment" onClick={() => changeSession(1)}>+</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="timer">
+            <div id="timer-label">{mode}</div>
+            <div id="time-left" className={isWarning ? "warning" : ""}>{formatTime(timeLeft)}</div>
+          </div>
+
+          <div className="controls">
+            <button id="start_stop" onClick={toggleRunning}>{running ? "Pause" : "Start"}</button>
+            <button id="reset" className="secondary" onClick={reset}>Reset</button>
+          </div>
+
+          <audio id="beep" ref={beepRef} src={BEEP_URL} preload="auto"></audio>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("app")).render(<App />);
+  </script>
+</body>
+</html>
