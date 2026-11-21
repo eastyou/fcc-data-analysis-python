@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>freeCodeCamp Forum</title>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --line:#334155; --text:#e2e8f0; --muted:#94a3b8; --accent:#38bdf8; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--text); }
+  header { padding:20px 24px; border-bottom:1px solid var(--line); display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+  h1 { font-size:20px; margin:0; }
+  input, select, textarea, button { font:inherit; border-radius:8px; border:1px solid var(--line); background:#0b1220; color:var(--text); padding:8px 10px; }
+  button { cursor:pointer; background:#1d4ed8; border-color:#1d4ed8; }
+  button.ghost { background:transparent; border-color:var(--line); }
+  main { max-width:900px; margin:0 auto; padding:20px; display:grid; gap:14px; }
+  .post { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; display:grid; grid-template-columns:auto 1fr; gap:14px; }
+  .votes { display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .votes button { padding:2px 8px; background:transparent; border:1px solid var(--line); }
+  .post h3 { margin:0 0 6px; font-size:16px; }
+  .meta { color:var(--muted); font-size:12px; display:flex; gap:12px; flex-wrap:wrap; }
+  .tag { color:var(--accent); }
+  form.new-post { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; display:grid; gap:8px; }
+  form.new-post input, form.new-post textarea { width:100%; }
+</style>
+</head>
+<body>
+<header>
+  <h1>freeCodeCamp Forum</h1>
+  <input id="search" placeholder="Search posts" aria-label="Search posts">
+  <select id="tagFilter" aria-label="Filter by tag">
+    <option value="">All tags</option>
+    <option>javascript</option>
+    <option>html-css</option>
+    <option>python</option>
+    <option>career</option>
+  </select>
+  <span id="count" class="meta"></span>
+</header>
+<main>
+  <form class="new-post" id="newPost">
+    <input id="title" placeholder="Post title" required maxlength="120">
+    <input id="author" placeholder="Your name" required maxlength="40">
+    <select id="tag">
+      <option>javascript</option>
+      <option>html-css</option>
+      <option>python</option>
+      <option>career</option>
+    </select>
+    <textarea id="body" rows="3" placeholder="What's on your mind?" required></textarea>
+    <button type="submit">Create post</button>
+  </form>
+  <section id="posts" aria-live="polite"></section>
+</main>
+<script>
+  const seed = [
+    { id: 1, title: "How do I center a div?", author: "camper01", tag: "html-css", votes: 12, replies: 4, body: "Flexbox or grid?" },
+    { id: 2, title: "Understanding closures once and for all", author: "jsfan", tag: "javascript", votes: 27, replies: 9, body: "Share your favorite examples." },
+    { id: 3, title: "Best free resources for pandas?", author: "data_newbie", tag: "python", votes: 8, replies: 2, body: "I finished the certification, what next?" },
+    { id: 4, title: "How did you land your first dev job?", author: "career_changer", tag: "career", votes: 41, replies: 15, body: "Looking for realistic stories." }
+  ];
+  const key = "fcc-forum-posts";
+  let posts = JSON.parse(localStorage.getItem(key) || "null") || seed;
+  const save = () => localStorage.setItem(key, JSON.stringify(posts));
+
+  function render() {
+    const query = document.getElementById("search").value.trim().toLowerCase();
+    const tag = document.getElementById("tagFilter").value;
+    const list = posts.filter((p) =>
+      (!tag || p.tag === tag) &&
+      (!query || p.title.toLowerCase().includes(query) || p.body.toLowerCase().includes(query))
+    );
+    document.getElementById("count").textContent = list.length + " post(s)";
+    document.getElementById("posts").innerHTML = list.map((p) => `
+      <article class="post">
+        <div class="votes">
+          <button data-up="${p.id}" aria-label="Upvote">▲</button>
+          <strong>${p.votes}</strong>
+          <button data-down="${p.id}" aria-label="Downvote">▼</button>
+        </div>
+        <div>
+          <h3>${escapeHtml(p.title)}</h3>
+          <div class="meta">
+            <span>by ${escapeHtml(p.author)}</span>
+            <span class="tag">#${p.tag}</span>
+            <span>${p.replies} replies</span>
+          </div>
+          <p class="meta">${escapeHtml(p.body)}</p>
+        </div>
+      </article>
+    `).join("") || "<p class='meta'>No posts match your filter.</p>";
+  }
+
+  function escapeHtml(text) {
+    return String(text).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+  }
+
+  document.getElementById("posts").addEventListener("click", (event) => {
+    const up = event.target.dataset.up;
+    const down = event.target.dataset.down;
+    if (up) { posts.find((p) => p.id === Number(up)).votes += 1; }
+    if (down) { posts.find((p) => p.id === Number(down)).votes -= 1; }
+    if (up || down) { save(); render(); }
+  });
+
+  document.getElementById("newPost").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const title = document.getElementById("title").value.trim();
+    const author = document.getElementById("author").value.trim();
+    const body = document.getElementById("body").value.trim();
+    if (!title || !author || !body) return;
+    posts.unshift({ id: Date.now(), title, author, body, tag: document.getElementById("tag").value, votes: 0, replies: 0 });
+    save();
+    event.target.reset();
+    render();
+  });
+
+  document.getElementById("search").addEventListener("input", render);
+  document.getElementById("tagFilter").addEventListener("change", render);
+  render();
+</script>
+</body>
+</html>
