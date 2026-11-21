@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Personal Library</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 34px 18px 60px;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: #f6f3ee; color: #2b2620;
+    }
+    .wrap { max-width: 760px; margin: 0 auto; }
+    h1 { margin: 0 0 6px; font-size: 1.7rem; }
+    p.sub { margin: 0 0 24px; color: #6b6055; }
+    .panel {
+      background: #fffdf9; border: 1px solid #e7ded1; border-radius: 12px;
+      padding: 20px; margin-bottom: 18px;
+    }
+    h2 { margin: 0 0 14px; font-size: 1.02rem; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; }
+    input {
+      flex: 1 1 180px; padding: 9px 11px; border: 1px solid #d9cfc1;
+      border-radius: 8px; font-size: 0.95rem; font-family: inherit; background: #fff;
+    }
+    button {
+      padding: 9px 15px; border: none; border-radius: 8px; cursor: pointer;
+      background: #7a5c3e; color: #fff; font-weight: 600; font-size: 0.92rem;
+    }
+    button.ghost { background: #efe6da; color: #5b4732; }
+    button.danger { background: #a4483f; }
+    .book { border-bottom: 1px dashed #e4d9ca; padding: 14px 0; }
+    .book:last-child { border-bottom: none; }
+    .book h3 { margin: 0 0 4px; font-size: 1rem; }
+    .book .count { font-size: 0.8rem; color: #8a7a66; }
+    .comments { margin: 10px 0 0; padding-left: 18px; font-size: 0.9rem; color: #574a3c; }
+    .comments li { margin-bottom: 4px; }
+    .empty { color: #8a7a66; font-size: 0.92rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Personal Library</h1>
+    <p class="sub">Keep a list of books, comment on them, and remove the ones you are done with.</p>
+
+    <section class="panel">
+      <h2>Add a book</h2>
+      <div class="row">
+        <input id="title" type="text" placeholder="Book title (required)" />
+        <input id="comment-input" type="text" placeholder="First comment (optional)" />
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button id="add-book" type="button">Add book</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Your library (<span id="book-count">0</span> books)</h2>
+      <div id="books"><p class="empty">No books yet.</p></div>
+    </section>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "personal-library-books";
+
+    function loadBooks() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (error) {
+        return [];
+      }
+    }
+
+    let books = loadBooks();
+
+    const booksElement = document.getElementById("books");
+    const countElement = document.getElementById("book-count");
+
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(books));
+    }
+
+    function render() {
+      countElement.textContent = String(books.length);
+      booksElement.innerHTML = "";
+      if (books.length === 0) {
+        const p = document.createElement("p");
+        p.className = "empty";
+        p.textContent = "No books yet.";
+        booksElement.appendChild(p);
+        return;
+      }
+
+      for (const book of books) {
+        const card = document.createElement("div");
+        card.className = "book";
+
+        const title = document.createElement("h3");
+        title.textContent = book.title;
+
+        const count = document.createElement("div");
+        count.className = "count";
+        count.textContent = book.comments.length + (book.comments.length === 1 ? " comment" : " comments");
+
+        const list = document.createElement("ul");
+        list.className = "comments";
+        if (book.comments.length === 0) {
+          const item = document.createElement("li");
+          item.textContent = "No comments yet.";
+          list.appendChild(item);
+        } else {
+          for (const comment of book.comments) {
+            const item = document.createElement("li");
+            item.textContent = comment;
+            list.appendChild(item);
+          }
+        }
+
+        const actions = document.createElement("div");
+        actions.className = "row";
+        actions.style.marginTop = "10px";
+
+        const addComment = document.createElement("button");
+        addComment.textContent = "Add comment";
+        addComment.addEventListener("click", () => {
+          const comment = window.prompt("Your comment:");
+          if (!comment || !comment.trim()) return;
+          book.comments.push(comment.trim());
+          save();
+          render();
+        });
+
+        const deleteBook = document.createElement("button");
+        deleteBook.className = "danger";
+        deleteBook.textContent = "Delete book";
+        deleteBook.addEventListener("click", () => {
+          books = books.filter((item) => item.id !== book.id);
+          save();
+          render();
+        });
+
+        actions.append(addComment, deleteBook);
+        card.append(title, count, list, actions);
+        booksElement.appendChild(card);
+      }
+    }
+
+    document.getElementById("add-book").addEventListener("click", () => {
+      const titleInput = document.getElementById("title");
+      const commentInput = document.getElementById("comment-input");
+      const title = titleInput.value.trim();
+      if (!title) {
+        window.alert("Please enter a book title.");
+        return;
+      }
+      const firstComment = commentInput.value.trim();
+      books.push({
+        id: Date.now() + "-" + Math.random().toString(16).slice(2),
+        title,
+        comments: firstComment ? [firstComment] : []
+      });
+      titleInput.value = "";
+      commentInput.value = "";
+      save();
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>
