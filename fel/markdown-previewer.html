@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Markdown Previewer</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 24px 16px 48px;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: #eef2f5;
+      color: #22313f;
+    }
+    .wrap {
+      max-width: 1180px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 860px) {
+      .wrap { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(20, 40, 60, 0.08);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 420px;
+    }
+    .panel h2 {
+      margin: 0;
+      padding: 12px 16px;
+      font-size: 0.95rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      background: #22313f;
+      color: #fff;
+    }
+    #editor {
+      flex: 1;
+      width: 100%;
+      min-height: 380px;
+      border: none;
+      outline: none;
+      resize: vertical;
+      padding: 16px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.92rem;
+      line-height: 1.55;
+      background: #fbfcfd;
+      color: #22313f;
+    }
+    #preview {
+      flex: 1;
+      padding: 16px 20px;
+      overflow: auto;
+      line-height: 1.6;
+    }
+    #preview img { max-width: 100%; }
+    #preview pre {
+      background: #f2f5f7;
+      padding: 12px;
+      border-radius: 8px;
+      overflow: auto;
+    }
+    #preview code {
+      background: #f2f5f7;
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    #preview pre code { background: none; padding: 0; }
+    #preview blockquote {
+      margin: 12px 0;
+      padding: 6px 16px;
+      border-left: 4px solid #7aa7c7;
+      color: #4a5b6a;
+    }
+    #preview table { border-collapse: collapse; }
+    #preview th, #preview td { border: 1px solid #d7dee4; padding: 6px 10px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <h2>Editor</h2>
+      <textarea id="editor"></textarea>
+    </div>
+    <div class="panel">
+      <h2>Preview</h2>
+      <div id="preview"></div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+  <script>
+    const DEFAULT_MARKDOWN = [
+      "# Welcome to my Markdown Previewer!",
+      "",
+      "## This is a sub-heading...",
+      "",
+      "Here is a [link](https://www.freecodecamp.org) and some `inline code`.",
+      "",
+      "```js",
+      "function greet(name) {",
+      "  return 'Hello, ' + name + '!';",
+      "}",
+      "```",
+      "",
+      "> This is a blockquote.",
+      "",
+      "**Bold text**, *italic text*, and an image:",
+      "",
+      "![freeCodeCamp logo](https://cdn.freecodecamp.org/platform/universal/fcc_primary.svg)",
+      "",
+      "- First list item",
+      "- Second list item",
+      "- Third list item",
+      "",
+      "A line break follows this sentence.",
+      "This is the next line."
+    ].join("\n");
+
+    const editor = document.getElementById("editor");
+    const preview = document.getElementById("preview");
+
+    marked.setOptions({
+      breaks: true,
+      gfm: true
+    });
+
+    function render(markdown) {
+      preview.innerHTML = marked.parse(markdown);
+    }
+
+    editor.value = DEFAULT_MARKDOWN;
+    editor.addEventListener("input", () => render(editor.value));
+    render(editor.value);
+  </script>
+</body>
+</html>
