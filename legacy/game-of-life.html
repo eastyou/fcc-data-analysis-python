@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game of Life</title>
+<style>
+  :root { --bg:#070b14; --panel:#111a2e; --line:#24324d; --text:#e8eefc; --muted:#8ba0bf; --accent:#22d3ee; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--text); min-height:100vh; display:flex; flex-direction:column; }
+  header { padding:18px 22px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; border-bottom:1px solid var(--line); }
+  h1 { margin:0 auto 0 0; font-size:19px; }
+  .stats { color:var(--muted); font-size:13px; display:flex; gap:16px; }
+  button { font:inherit; cursor:pointer; border-radius:8px; border:1px solid var(--line); background:#17233d; color:var(--text); padding:7px 12px; }
+  button.primary { background:var(--accent); color:#052026; border-color:var(--accent); font-weight:600; }
+  main { flex:1; display:grid; place-items:center; padding:20px; }
+  canvas { background:#0a1120; border:1px solid var(--line); border-radius:10px; max-width:100%; height:auto; image-rendering:pixelated; }
+  footer { padding:0 22px 18px; color:var(--muted); font-size:12px; text-align:center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Conway's Game of Life</h1>
+  <div class="stats">
+    <span>Generation: <strong id="gen">0</strong></span>
+    <span>Alive: <strong id="alive">0</strong></span>
+  </div>
+  <button class="primary" id="toggle">Start</button>
+  <button id="step">Step</button>
+  <button id="random">Random</button>
+  <button id="clear">Clear</button>
+</header>
+<main><canvas id="board" width="800" height="480"></canvas></main>
+<footer>Click cells to toggle them. Green cells are alive.</footer>
+<script>
+  const COLS = 80;
+  const ROWS = 48;
+  const CELL = 10;
+  const canvas = document.getElementById("board");
+  const ctx = canvas.getContext("2d");
+
+  function createGrid() {
+    return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
+  }
+
+  let grid = createGrid();
+  let generation = 0;
+  let running = false;
+  let timer = null;
+
+  function randomize() {
+    grid = grid.map((row) => row.map(() => (Math.random() > 0.72 ? 1 : 0)));
+    generation = 0;
+    draw();
+  }
+
+  function countNeighbors(row, col) {
+    let count = 0;
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        const r = (row + dr + ROWS) % ROWS;
+        const c = (col + dc + COLS) % COLS;
+        count += grid[r][c];
+      }
+    }
+    return count;
+  }
+
+  function step() {
+    const next = createGrid();
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const neighbors = countNeighbors(r, c);
+        next[r][c] = grid[r][c] ? (neighbors === 2 || neighbors === 3 ? 1 : 0) : (neighbors === 3 ? 1 : 0);
+      }
+    }
+    grid = next;
+    generation += 1;
+    draw();
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let alive = 0;
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (grid[r][c]) {
+          alive += 1;
+          ctx.fillStyle = "#34d399";
+          ctx.fillRect(c * CELL + 1, r * CELL + 1, CELL - 2, CELL - 2);
+        }
+      }
+    }
+    document.getElementById("gen").textContent = generation;
+    document.getElementById("alive").textContent = alive;
+  }
+
+  function setRunning(value) {
+    running = value;
+    document.getElementById("toggle").textContent = running ? "Pause" : "Start";
+    clearInterval(timer);
+    if (running) {
+      timer = setInterval(step, 120);
+    }
+  }
+
+  canvas.addEventListener("click", (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const col = Math.floor(((event.clientX - rect.left) * scaleX) / CELL);
+    const row = Math.floor(((event.clientY - rect.top) * scaleY) / CELL);
+    if (row >= 0 && row < ROWS && col >= 0 && col < COLS) {
+      grid[row][col] = grid[row][col] ? 0 : 1;
+      draw();
+    }
+  });
+
+  document.getElementById("toggle").addEventListener("click", () => setRunning(!running));
+  document.getElementById("step").addEventListener("click", () => { setRunning(false); step(); });
+  document.getElementById("random").addEventListener("click", () => { setRunning(false); randomize(); });
+  document.getElementById("clear").addEventListener("click", () => {
+    setRunning(false);
+    grid = createGrid();
+    generation = 0;
+    draw();
+  });
+
+  randomize();
+</script>
+</body>
+</html>
