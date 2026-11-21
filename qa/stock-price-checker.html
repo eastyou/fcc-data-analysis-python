@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stock Price Checker</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: grid; place-items: center;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: #0f1b24; color: #e9f1f7;
+    }
+    .card {
+      width: min(620px, 94vw); padding: 28px; border-radius: 14px;
+      background: #162835; border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+    }
+    h1 { margin: 0 0 4px; font-size: 1.5rem; }
+    p.sub { margin: 0 0 20px; color: #9fb3c2; font-size: 0.9rem; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+    input[type="text"] {
+      flex: 1 1 160px; padding: 10px 12px; border-radius: 8px;
+      border: 1px solid #2c4454; background: #0f1b24; color: #e9f1f7;
+      font-size: 0.96rem; font-family: inherit; text-transform: uppercase;
+    }
+    label.check { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #b8c9d6; }
+    button {
+      width: 100%; padding: 11px; border: none; border-radius: 9px;
+      background: #59d2a8; color: #0c231c; font-weight: 800; font-size: 0.98rem; cursor: pointer;
+    }
+    button:hover { filter: brightness(1.06); }
+    #results { margin-top: 20px; display: grid; gap: 12px; }
+    .stock {
+      padding: 14px 16px; border-radius: 10px; background: #0f1b24;
+      border: 1px solid #24404f;
+    }
+    .stock h2 { margin: 0 0 4px; font-size: 1rem; letter-spacing: 0.04em; }
+    .stock .price { font-size: 1.25rem; font-weight: 800; color: #59d2a8; }
+    .stock .likes { font-size: 0.85rem; color: #9fb3c2; margin-top: 4px; }
+    .stock .like-btn {
+      width: auto; margin-top: 8px; padding: 6px 12px; font-size: 0.85rem;
+      background: #24404f; color: #cfe2ee;
+    }
+    .rel { font-size: 0.88rem; color: #cfe2ee; }
+    .error { color: #ff9c9c; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Stock Price Checker</h1>
+    <p class="sub">Enter one symbol, or tick “compare” and enter two.</p>
+
+    <div class="row">
+      <input id="stock-1" type="text" placeholder="e.g. GOOG" />
+      <input id="stock-2" type="text" placeholder="e.g. MSFT" />
+    </div>
+    <div class="row">
+      <label class="check"><input id="compare" type="checkbox" /> Compare two stocks</label>
+    </div>
+    <button id="check-btn" type="button">Get price</button>
+
+    <div id="results"></div>
+  </main>
+
+  <script>
+    const PROXY = "https://stock-price-checker-proxy.freecodecamp.rocks/v1/stock/";
+    const LIKE_KEY = "stock-likes";
+
+    const results = document.getElementById("results");
+    const compareCheckbox = document.getElementById("compare");
+
+    function readLikes() {
+      try {
+        const raw = localStorage.getItem(LIKE_KEY);
+        return raw ? JSON.parse(raw) : {};
+      } catch (error) {
+        return {};
+      }
+    }
+
+    function writeLikes(likes) {
+      localStorage.setItem(LIKE_KEY, JSON.stringify(likes));
+    }
+
+    async function fetchQuote(symbol) {
+      const response = await fetch(PROXY + encodeURIComponent(symbol) + "/quote");
+      if (!response.ok) throw new Error("Could not load " + symbol);
+      const data = await response.json();
+      if (!data || typeof data.latestPrice !== "number") throw new Error("No price for " + symbol);
+      return data;
+    }
+
+    function renderStock(quote, likes) {
+      const card = document.createElement("div");
+      card.className = "stock";
+
+      const heading = document.createElement("h2");
+      heading.textContent = quote.symbol;
+
+      const price = document.createElement("div");
+      price.className = "price";
+      price.textContent = "$" + quote.latestPrice.toFixed(2);
+
+      const likeCount = document.createElement("div");
+      likeCount.className = "likes";
+      likeCount.textContent = (likes[quote.symbol] || 0) + " likes";
+
+      const likeButton = document.createElement("button");
+      likeButton.className = "like-btn";
+      likeButton.textContent = "Like " + quote.symbol;
+      likeButton.addEventListener("click", () => {
+        const updated = readLikes();
+        updated[quote.symbol] = (updated[quote.symbol] || 0) + 1;
+        writeLikes(updated);
+        likeCount.textContent = updated[quote.symbol] + " likes";
+      });
+
+      card.append(heading, price, likeCount, likeButton);
+      return card;
+    }
+
+    async function check() {
+      results.innerHTML = "";
+      const first = document.getElementById("stock-1").value.trim().toUpperCase();
+      const second = document.getElementById("stock-2").value.trim().toUpperCase();
+      const compare = compareCheckbox.checked;
+      const likes = readLikes();
+
+      if (!first) {
+        results.textContent = "Please enter a stock symbol.";
+        results.className = "error";
+        return;
+      }
+      results.className = "";
+
+      try {
+        if (compare && second) {
+          const [a, b] = await Promise.all([fetchQuote(first), fetchQuote(second)]);
+          const likesA = likes[a.symbol] || 0;
+          const likesB = likes[b.symbol] || 0;
+          results.append(renderStock(a, likes), renderStock(b, likes));
+          const rel = document.createElement("div");
+          rel.className = "rel";
+          rel.textContent = "Relative likes: " + (likesA - likesB);
+          results.appendChild(rel);
+        } else {
+          const quote = await fetchQuote(first);
+          results.appendChild(renderStock(quote, likes));
+        }
+      } catch (error) {
+        results.innerHTML = "";
+        results.textContent = error instanceof Error ? error.message : "Request failed.";
+        results.className = "error";
+      }
+    }
+
+    document.getElementById("check-btn").addEventListener("click", check);
+  </script>
+</body>
+</html>
