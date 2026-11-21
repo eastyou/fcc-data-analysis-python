@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Portfolio — Su Yihao</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root { --ink: #edf3f8; --bg: #0f1b24; --accent: #59d2a8; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.65;
+    }
+    #navbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 26px;
+      background: rgba(15, 27, 36, 0.94);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    #navbar strong { font-size: 1rem; letter-spacing: 0.03em; }
+    #navbar nav { display: flex; gap: 18px; flex-wrap: wrap; }
+    #navbar a {
+      color: var(--ink);
+      text-decoration: none;
+      font-size: 0.93rem;
+      opacity: 0.85;
+    }
+    #navbar a:hover { opacity: 1; color: var(--accent); }
+    #welcome-section {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 110px 22px 60px;
+      text-align: center;
+      background: radial-gradient(circle at 50% 20%, #183447, #0f1b24 70%);
+    }
+    #welcome-section h1 {
+      margin: 0 0 12px;
+      font-size: clamp(2.1rem, 6vw, 3.4rem);
+    }
+    #welcome-section p { max-width: 560px; color: #a9bccb; margin: 0; }
+    #projects { padding: 70px 22px 80px; max-width: 1050px; margin: 0 auto; }
+    #projects h2 { font-size: 1.7rem; margin-top: 0; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 18px;
+      margin-top: 22px;
+    }
+    .project-tile {
+      display: block;
+      padding: 22px;
+      border-radius: 12px;
+      background: #162835;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      color: var(--ink);
+      text-decoration: none;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+    .project-tile:hover {
+      transform: translateY(-4px);
+      border-color: var(--accent);
+    }
+    .project-tile h3 { margin: 0 0 8px; font-size: 1.08rem; }
+    .project-tile p { margin: 0; color: #9fb3c2; font-size: 0.92rem; }
+    footer {
+      padding: 34px 22px 46px;
+      text-align: center;
+      color: #93a7b6;
+      border-top: 1px solid rgba(255, 255, 255, 0.07);
+    }
+    #profile-link { color: var(--accent); font-weight: 700; }
+    @media (max-width: 600px) {
+      #navbar { flex-direction: column; align-items: flex-start; gap: 8px; }
+      #welcome-section { padding-top: 150px; }
+    }
+  </style>
+</head>
+<body>
+  <header id="navbar">
+    <strong>Su Yihao</strong>
+    <nav>
+      <a href="#welcome-section">Welcome</a>
+      <a href="#projects">Projects</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </header>
+
+  <section id="welcome-section">
+    <h1>Hi, I'm Su Yihao</h1>
+    <p>I build small, careful web things — from data visualisations to interactive study tools.</p>
+  </section>
+
+  <section id="projects">
+    <h2>Projects</h2>
+    <div class="grid">
+      <a class="project-tile" href="https://eastyou.github.io/fcc-data-analysis-python/dv/bar-chart.html">
+        <h3>D3 Bar Chart</h3>
+        <p>US GDP over time, drawn with D3 scales and axes.</p>
+      </a>
+      <a class="project-tile" href="https://eastyou.github.io/fcc-data-analysis-python/fel/random-quote-machine.html">
+        <h3>Random Quote Machine</h3>
+        <p>A React quote generator with tweet sharing.</p>
+      </a>
+      <a class="project-tile" href="https://eastyou.github.io/fcc-data-analysis-python/fel/drum-machine.html">
+        <h3>Drum Machine</h3>
+        <p>Nine pads, keyboard bindings, and Web Audio playback.</p>
+      </a>
+    </div>
+  </section>
+
+  <footer id="contact">
+    <p>
+      Find me on
+      <a id="profile-link" href="https://github.com/eastyou" target="_blank" rel="noopener noreferrer">GitHub</a>.
+    </p>
+  </footer>
+</body>
+</html>
