@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Metric-Imperial Converter</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: grid; place-items: center;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: linear-gradient(160deg, #eef3f8, #f8f5f0); color: #1f2a33;
+    }
+    .card {
+      width: min(520px, 92vw); padding: 30px; background: #fff; border-radius: 14px;
+      box-shadow: 0 16px 40px rgba(20, 40, 60, 0.12);
+    }
+    h1 { margin: 0 0 6px; font-size: 1.6rem; }
+    p.hint { margin: 0 0 22px; color: #5d6c78; font-size: 0.92rem; }
+    label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.92rem; }
+    .row { display: flex; gap: 10px; margin-bottom: 16px; }
+    input, select {
+      padding: 10px 12px; border: 1px solid #cfd9e0; border-radius: 8px;
+      font-size: 1rem; font-family: inherit; background: #fbfcfd;
+    }
+    input { flex: 1; min-width: 0; }
+    button {
+      width: 100%; padding: 12px; border: none; border-radius: 9px;
+      background: #2f6f8f; color: #fff; font-size: 1rem; font-weight: 700; cursor: pointer;
+    }
+    button:hover { filter: brightness(1.08); }
+    #result {
+      margin-top: 20px; padding: 14px 16px; border-radius: 9px;
+      background: #f2f7fa; color: #23313d; font-family: ui-monospace, Menlo, monospace;
+      font-size: 0.95rem; white-space: pre-wrap; min-height: 22px;
+    }
+    .error { color: #b23b3b !important; background: #fdf1f1 !important; }
+    .table { width: 100%; margin-top: 18px; border-collapse: collapse; font-size: 0.9rem; }
+    .table td { padding: 6px 8px; border-bottom: 1px solid #eef3f6; color: #4d5c68; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Metric / Imperial Converter</h1>
+    <p class="hint">Supported units: gal, L, mi, km, lbs, kg</p>
+
+    <label for="input">Convert a value</label>
+    <div class="row">
+      <input id="input" type="text" placeholder="e.g. 4gal  /  3.1lbs  /  2.5km" />
+      <button id="convert-btn" type="button" style="width:auto;padding:10px 20px;">Convert</button>
+    </div>
+
+    <div id="result">Enter a value such as <code>4gal</code>.</div>
+
+    <table class="table">
+      <tr><td>gal → L</td><td>× 3.78541</td></tr>
+      <tr><td>L → gal</td><td>÷ 3.78541</td></tr>
+      <tr><td>mi → km</td><td>× 1.60934</td></tr>
+      <tr><td>km → mi</td><td>÷ 1.60934</td></tr>
+      <tr><td>lbs → kg</td><td>× 0.453592</td></tr>
+      <tr><td>kg → lbs</td><td>÷ 0.453592</td></tr>
+    </table>
+  </main>
+
+  <script>
+    const FACTORS = {
+      gal: { unit: "L", factor: 3.78541 },
+      L: { unit: "gal", factor: 1 / 3.78541 },
+      mi: { unit: "km", factor: 1.60934 },
+      km: { unit: "mi", factor: 1 / 1.60934 },
+      lbs: { unit: "kg", factor: 0.453592 },
+      kg: { unit: "lbs", factor: 1 / 0.453592 }
+    };
+
+    const inputElement = document.getElementById("input");
+    const resultElement = document.getElementById("result");
+
+    function round(value) {
+      return Math.round(value * 100000) / 100000;
+    }
+
+    function convert(raw) {
+      const value = String(raw).trim();
+      if (!value) return { error: "invalid input" };
+
+      const match = value.match(/^([+-]?\d*\.?\d+)\s*([a-zA-Z]+)$/);
+      if (!match) return { error: "invalid input" };
+
+      const initNum = Number(match[1]);
+      const initUnit = match[2].toLowerCase();
+      const rule = FACTORS[initUnit];
+      if (!rule) return { error: "invalid unit" };
+      if (!Number.isFinite(initNum)) return { error: "invalid number" };
+
+      const returnNum = round(initNum * rule.factor);
+      const string = initNum + " " + initUnit + " converts to " + returnNum + " " + rule.unit;
+      return { initNum, initUnit, returnNum, returnUnit: rule.unit, string };
+    }
+
+    function show() {
+      const out = convert(inputElement.value);
+      if (out.error) {
+        resultElement.textContent = out.error;
+        resultElement.classList.add("error");
+        return;
+      }
+      resultElement.classList.remove("error");
+      resultElement.textContent = JSON.stringify(
+        { initNum: out.initNum, initUnit: out.initUnit, returnNum: out.returnNum, returnUnit: out.returnUnit, string: out.string },
+        null,
+        2
+      );
+    }
+
+    document.getElementById("convert-btn").addEventListener("click", show);
+    inputElement.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") show();
+    });
+  </script>
+</body>
+</html>
