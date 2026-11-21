@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Memory Light Game</title>
+<style>
+  :root { --bg:#0a0f1f; --card:#16203a; --line:#26345a; --text:#eaf0ff; --muted:#93a3c4; --accent:#22d3ee; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background:radial-gradient(circle at 50% -10%, #16305a, var(--bg) 60%); color:var(--text); display:flex; flex-direction:column; align-items:center; gap:16px; padding:26px 18px 40px; }
+  h1 { margin:0; font-size:22px; }
+  .hud { display:flex; gap:20px; color:var(--muted); font-size:14px; }
+  .hud strong { color:var(--text); }
+  #grid { display:grid; grid-template-columns:repeat(4, 82px); grid-template-rows:repeat(4, 82px); gap:10px; }
+  .card { perspective:600px; cursor:pointer; }
+  .inner { position:relative; width:100%; height:100%; transition:transform .35s; transform-style:preserve-3d; }
+  .card.flipped .inner, .card.matched .inner { transform:rotateY(180deg); }
+  .face { position:absolute; inset:0; display:grid; place-items:center; border-radius:12px; backface-visibility:hidden; font-size:34px; }
+  .front { background:var(--card); border:1px solid var(--line); color:#2e3f66; font-size:24px; }
+  .back { background:#0f2f4a; border:1px solid #2c5f88; transform:rotateY(180deg); }
+  .matched .back { background:#064e3b; border-color:#10b981; }
+  button { font:inherit; cursor:pointer; border-radius:9px; border:1px solid var(--line); background:#1d2a4d; color:var(--text); padding:9px 16px; }
+  #message { min-height:22px; color:var(--accent); font-size:15px; }
+</style>
+</head>
+<body>
+  <h1>🧠 Memory Light Game</h1>
+  <div class="hud">
+    <span>Moves <strong id="moves">0</strong></span>
+    <span>Pairs <strong id="pairs">0</strong>/8</span>
+    <span>Time <strong id="time">0s</strong></span>
+  </div>
+  <div id="grid" aria-label="Memory game board"></div>
+  <p id="message">Find all 8 pairs.</p>
+  <button id="restart">Restart</button>
+<script>
+  const EMOJIS = ["🚀", "🌙", "⭐", "🔥", "🌈", "🍀", "🎧", "🍕"];
+  const grid = document.getElementById("grid");
+  let deck = [];
+  let flipped = [];
+  let matched = 0;
+  let moves = 0;
+  let lock = false;
+  let started = false;
+  let timer = null;
+  let seconds = 0;
+
+  function shuffle(items) {
+    for (let i = items.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [items[i], items[j]] = [items[j], items[i]];
+    }
+    return items;
+  }
+
+  function newGame() {
+    clearInterval(timer);
+    seconds = 0;
+    moves = 0;
+    matched = 0;
+    flipped = [];
+    lock = false;
+    started = false;
+    deck = shuffle([...EMOJIS, ...EMOJIS]);
+    document.getElementById("moves").textContent = 0;
+    document.getElementById("pairs").textContent = 0;
+    document.getElementById("time").textContent = "0s";
+    document.getElementById("message").textContent = "Find all 8 pairs.";
+    grid.innerHTML = deck.map((emoji, index) => `
+      <div class="card" data-index="${index}">
+        <div class="inner">
+          <div class="face front">?</div>
+          <div class="face back">${emoji}</div>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  function startTimer() {
+    if (started) return;
+    started = true;
+    timer = setInterval(() => {
+      seconds += 1;
+      document.getElementById("time").textContent = seconds + "s";
+    }, 1000);
+  }
+
+  grid.addEventListener("click", (event) => {
+    const card = event.target.closest(".card");
+    if (!card || lock) return;
+    const index = Number(card.dataset.index);
+    if (card.classList.contains("flipped") || card.classList.contains("matched")) return;
+    startTimer();
+    card.classList.add("flipped");
+    flipped.push({ card, index });
+
+    if (flipped.length === 2) {
+      moves += 1;
+      document.getElementById("moves").textContent = moves;
+      const [first, second] = flipped;
+      if (deck[first.index] === deck[second.index]) {
+        first.card.classList.add("matched");
+        second.card.classList.add("matched");
+        flipped = [];
+        matched += 1;
+        document.getElementById("pairs").textContent = matched;
+        if (matched === EMOJIS.length) {
+          clearInterval(timer);
+          document.getElementById("message").textContent = `You won in ${moves} moves and ${seconds}s! 🎉`;
+        }
+      } else {
+        lock = true;
+        setTimeout(() => {
+          first.card.classList.remove("flipped");
+          second.card.classList.remove("flipped");
+          flipped = [];
+          lock = false;
+        }, 750);
+      }
+    }
+  });
+
+  document.getElementById("restart").addEventListener("click", newGame);
+  newGame();
+</script>
+</body>
+</html>
