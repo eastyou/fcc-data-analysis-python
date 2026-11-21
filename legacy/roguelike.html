@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roguelike Dungeon Crawler</title>
+<style>
+  :root { --bg:#0a0a0f; --panel:#141422; --line:#2a2a44; --text:#e7e7f5; --muted:#8d8db0; --gold:#fbbf24; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--text); }
+  header { padding:16px 20px; display:flex; gap:18px; align-items:center; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  h1 { margin:0 auto 0 0; font-size:18px; }
+  .stat { font-size:13px; color:var(--muted); }
+  .stat strong { color:var(--text); }
+  .hp { color:#f87171; }
+  main { display:grid; grid-template-columns:minmax(0, 1fr) 240px; gap:18px; padding:18px; }
+  #map { display:grid; grid-template-columns:repeat(40, 1fr); background:#07070c; border:1px solid var(--line); border-radius:10px; overflow:hidden; font-family:"SF Mono", Menlo, monospace; }
+  .tile { aspect-ratio:1; display:grid; place-items:center; font-size:11px; color:#4b5563; }
+  .wall { background:#1b1b2b; color:#2d2d44; }
+  .floor { background:#0e0e18; color:#25253a; }
+  .player { color:#34d399; font-weight:700; }
+  .enemy { color:#f87171; font-weight:700; }
+  .potion { color:#60a5fa; }
+  .sword { color:#fbbf24; }
+  .stairs { color:#c084fc; }
+  aside { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:10px; }
+  #log { font-size:12px; color:var(--muted); line-height:1.5; max-height:320px; overflow:auto; margin:0; padding-left:16px; }
+  button { font:inherit; cursor:pointer; border-radius:8px; border:1px solid var(--line); background:#1e1e35; color:var(--text); padding:9px; }
+  kbd { background:#22223a; border:1px solid var(--line); border-radius:4px; padding:1px 5px; font-size:11px; }
+  @media (max-width: 820px) { main { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>⚔️ Dungeon Crawler</h1>
+  <span class="stat">Level <strong id="level">1</strong></span>
+  <span class="stat hp">HP <strong id="hp">20</strong></span>
+  <span class="stat">ATK <strong id="atk">2</strong></span>
+  <span class="stat">Turn <strong id="turn">0</strong></span>
+</header>
+<main>
+  <div id="map" aria-label="Dungeon map"></div>
+  <aside>
+    <button id="restart">Restart</button>
+    <p class="stat">Move with <kbd>WASD</kbd> or arrow keys. Walk into enemies to attack. Reach <span style="color:#c084fc">▽</span> to descend.</p>
+    <ul id="log"></ul>
+  </aside>
+</main>
+<script>
+  const WIDTH = 40;
+  const HEIGHT = 24;
+  const WALL = "#";
+  const FLOOR = ".";
+
+  const state = {
+    map: [],
+    player: { x: 1, y: 1 },
+    enemies: [],
+    items: [],
+    stairs: { x: 0, y: 0 },
+    hp: 20,
+    maxHp: 20,
+    atk: 2,
+    level: 1,
+    turn: 0,
+    over: false
+  };
+
+  function log(message) {
+    const item = document.createElement("li");
+    item.textContent = message;
+    const list = document.getElementById("log");
+    list.prepend(item);
+    while (list.children.length > 12) list.lastElementChild.remove();
+  }
+
+  function randomInt(max) {
+    return Math.floor(Math.random() * max);
+  }
+
+  function carveRoom(map) {
+    const w = 4 + randomInt(6);
+    const h = 3 + randomInt(4);
+    const x = 1 + randomInt(WIDTH - w - 2);
+    const y = 1 + randomInt(HEIGHT - h - 2);
+    for (let r = y; r < y + h; r++) {
+      for (let c = x; c < x + w; c++) map[r][c] = FLOOR;
+    }
+    return { x, y, w, h };
+  }
+
+  function generateLevel() {
+    state.map = Array.from({ length: HEIGHT }, () => new Array(WIDTH).fill(WALL));
+    const rooms = [];
+    for (let i = 0; i < 7; i++) rooms.push(carveRoom(state.map));
+
+    // 走廊连接房间中心
+    for (let i = 1; i < rooms.length; i++) {
+      const a = rooms[i - 1];
+      const b = rooms[i];
+      const ax = Math.floor(a.x + a.w / 2), ay = Math.floor(a.y + a.h / 2);
+      const bx = Math.floor(b.x + b.w / 2), by = Math.floor(b.y + b.h / 2);
+      for (let x = Math.min(ax, bx); x <= Math.max(ax, bx); x++) state.map[ay][x] = FLOOR;
+      for (let y = Math.min(ay, by); y <= Math.max(ay, by); y++) state.map[y][bx] = FLOOR;
+    }
+
+    const start = rooms[0];
+    state.player = { x: start.x + 1, y: start.y + 1 };
+    state.enemies = [];
+    for (let i = 1; i < rooms.length; i++) {
+      const room = rooms[i];
+      const count = 1 + randomInt(2) + Math.floor(state.level / 2);
+      for (let k = 0; k < count; k++) {
+        state.enemies.push({ x: room.x + randomInt(room.w), y: room.y + randomInt(room.h), hp: 2 + state.level, atk: 1 + Math.floor(state.level / 2) });
+      }
+    }
+    state.items = [];
+    for (let i = 1; i < rooms.length; i++) {
+      const room = rooms[i];
+      state.items.push({ x: room.x + randomInt(room.w), y: room.y + randomInt(room.h), type: Math.random() > 0.5 ? "potion" : "sword" });
+    }
+    const last = rooms[rooms.length - 1];
+    state.stairs = { x: last.x + last.w - 1, y: last.y + last.h - 1 };
+    state.over = false;
+    state.turn = 0;
+    render();
+    document.getElementById("log").innerHTML = "";
+    log("You enter level " + state.level + ". Find the stairs ▽.");
+  }
+
+  function tileAt(x, y) {
+    if (x < 0 || y < 0 || x >= WIDTH || y >= HEIGHT) return WALL;
+    return state.map[y][x];
+  }
+
+  function isFree(x, y) {
+    return tileAt(x, y) === FLOOR && !state.enemies.some((e) => e.x === x && e.y === y);
+  }
+
+  function move(dx, dy) {
+    if (state.over) return;
+    const nx = state.player.x + dx;
+    const ny = state.player.y + dy;
+    const enemy = state.enemies.find((e) => e.x === nx && e.y === ny);
+
+    if (enemy) {
+      enemy.hp -= state.atk;
+      if (enemy.hp <= 0) {
+        state.enemies = state.enemies.filter((e) => e !== enemy);
+        log("You slay a monster!");
+      } else {
+        log("You hit a monster for " + state.atk + " damage.");
+      }
+    } else if (tileAt(nx, ny) !== WALL) {
+      state.player = { x: nx, y: ny };
+      const item = state.items.find((i) => i.x === nx && i.y === ny);
+      if (item) {
+        state.items = state.items.filter((i) => i !== item);
+        if (item.type === "potion") {
+          state.hp = Math.min(state.maxHp, state.hp + 5);
+          log("You drink a potion (+5 HP).");
+        } else {
+          state.atk += 1;
+          log("You find a sharper sword (+1 ATK).");
+        }
+      }
+      if (nx === state.stairs.x && ny === state.stairs.y) {
+        state.level += 1;
+        state.hp = Math.min(state.maxHp, state.hp + 3);
+        log("You descend to level " + state.level + ".");
+        generateLevel();
+        return;
+      }
+    }
+
+    state.turn += 1;
+    enemiesAct();
+    render();
+  }
+
+  function enemiesAct() {
+    for (const enemy of state.enemies) {
+      const dx = state.player.x - enemy.x;
+      const dy = state.player.y - enemy.y;
+      if (Math.abs(dx) + Math.abs(dy) === 1) {
+        state.hp -= enemy.atk;
+        log("A monster hits you for " + enemy.atk + ".");
+        if (state.hp <= 0) {
+          state.over = true;
+          state.hp = 0;
+          log("You died on level " + state.level + ". Press Restart.");
+          return;
+        }
+      } else if (Math.random() > 0.4) {
+        const stepX = Math.abs(dx) > Math.abs(dy) ? Math.sign(dx) : 0;
+        const stepY = stepX === 0 ? Math.sign(dy) : 0;
+        const tx = enemy.x + stepX;
+        const ty = enemy.y + stepY;
+        if (tileAt(tx, ty) === FLOOR && !(state.player.x === tx && state.player.y === ty) && !state.enemies.some((e) => e !== enemy && e.x === tx && e.y === ty)) {
+          enemy.x = tx;
+          enemy.y = ty;
+        }
+      }
+    }
+  }
+
+  function render() {
+    const map = document.getElementById("map");
+    const cells = [];
+    for (let y = 0; y < HEIGHT; y++) {
+      for (let x = 0; x < WIDTH; x++) {
+        let cls = tileAt(x, y) === WALL ? "tile wall" : "tile floor";
+        let glyph = tileAt(x, y) === WALL ? "·" : "·";
+        if (x === state.stairs.x && y === state.stairs.y) { glyph = "▽"; cls += " stairs"; }
+        const item = state.items.find((i) => i.x === x && i.y === y);
+        if (item) { glyph = item.type === "potion" ? "!" : "/"; cls += item.type === "potion" ? " potion" : " sword"; }
+        const enemy = state.enemies.find((e) => e.x === x && e.y === y);
+        if (enemy) { glyph = "E"; cls += " enemy"; }
+        if (state.player.x === x && state.player.y === y) { glyph = "@"; cls += " player"; }
+        cells.push(`<div class="${cls}">${glyph}</div>`);
+      }
+    }
+    map.innerHTML = cells.join("");
+    document.getElementById("hp").textContent = state.hp;
+    document.getElementById("atk").textContent = state.atk;
+    document.getElementById("level").textContent = state.level;
+    document.getElementById("turn").textContent = state.turn;
+  }
+
+  document.addEventListener("keydown", (event) => {
+    const moves = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0], w: [0, -1], s: [0, 1], a: [-1, 0], d: [1, 0] };
+    const moveVector = moves[event.key] || moves[event.key.toLowerCase()];
+    if (moveVector) {
+      event.preventDefault();
+      move(moveVector[0], moveVector[1]);
+    }
+  });
+
+  document.getElementById("restart").addEventListener("click", () => {
+    state.hp = 20;
+    state.maxHp = 20;
+    state.atk = 2;
+    state.level = 1;
+    generateLevel();
+  });
+
+  generateLevel();
+</script>
+</body>
+</html>
