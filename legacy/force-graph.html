@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>National Contiguity</title>
+<style>
+  :root { --bg:#0b1020; --panel:#111a33; --line:#25324f; --text:#e6ecf9; --muted:#8fa1c0; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--text); }
+  header { padding:18px 22px; border-bottom:1px solid var(--line); }
+  h1 { margin:0 0 6px; font-size:19px; }
+  p { margin:0; color:var(--muted); font-size:13px; }
+  #chart { display:block; width:100%; height:calc(100vh - 92px); }
+  .link { stroke:#3b82f6; stroke-opacity:.45; }
+  .node circle { fill:#1d4ed8; stroke:#93c5fd; stroke-width:1.5; cursor:grab; }
+  .node text { fill:#dbeafe; font-size:16px; text-anchor:middle; pointer-events:none; }
+  .label { fill:#64748b; font-size:10px; text-anchor:middle; }
+  #tip { position:fixed; pointer-events:none; background:#0f172a; border:1px solid var(--line); border-radius:8px; padding:6px 9px; font-size:12px; color:var(--text); opacity:0; transition:opacity .12s; }
+</style>
+</head>
+<body>
+<header>
+  <h1>National Contiguity</h1>
+  <p>Countries that share a border are connected. Drag nodes to explore the network.</p>
+</header>
+<svg id="chart"></svg>
+<div id="tip"></div>
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script>
+  const countries = [
+    { id: "CN", name: "China", flag: "🇨🇳" }, { id: "RU", name: "Russia", flag: "🇷🇺" },
+    { id: "IN", name: "India", flag: "🇮🇳" }, { id: "MN", name: "Mongolia", flag: "🇲🇳" },
+    { id: "KZ", name: "Kazakhstan", flag: "🇰🇿" }, { id: "NP", name: "Nepal", flag: "🇳🇵" },
+    { id: "BT", name: "Bhutan", flag: "🇧🇹" }, { id: "MM", name: "Myanmar", flag: "🇲🇲" },
+    { id: "LA", name: "Laos", flag: "🇱🇦" }, { id: "VN", name: "Vietnam", flag: "🇻🇳" },
+    { id: "PK", name: "Pakistan", flag: "🇵🇰" }, { id: "AF", name: "Afghanistan", flag: "🇦🇫" },
+    { id: "TJ", name: "Tajikistan", flag: "🇹🇯" }, { id: "KG", name: "Kyrgyzstan", flag: "🇰🇬" },
+    { id: "KP", name: "North Korea", flag: "🇰🇵" }, { id: "KR", name: "South Korea", flag: "🇰🇷" },
+    { id: "JP", name: "Japan", flag: "🇯🇵" }, { id: "TH", name: "Thailand", flag: "🇹🇭" },
+    { id: "KH", name: "Cambodia", flag: "🇰🇭" }, { id: "BD", name: "Bangladesh", flag: "🇧🇩" },
+    { id: "DE", name: "Germany", flag: "🇩🇪" }, { id: "FR", name: "France", flag: "🇫🇷" },
+    { id: "ES", name: "Spain", flag: "🇪🇸" }, { id: "PT", name: "Portugal", flag: "🇵🇹" },
+    { id: "IT", name: "Italy", flag: "🇮🇹" }, { id: "CH", name: "Switzerland", flag: "🇨🇭" },
+    { id: "AT", name: "Austria", flag: "🇦🇹" }, { id: "PL", name: "Poland", flag: "🇵🇱" },
+    { id: "CZ", name: "Czechia", flag: "🇨🇿" }, { id: "BE", name: "Belgium", flag: "🇧🇪" },
+    { id: "NL", name: "Netherlands", flag: "🇳🇱" }, { id: "US", name: "United States", flag: "🇺🇸" },
+    { id: "CA", name: "Canada", flag: "🇨🇦" }, { id: "MX", name: "Mexico", flag: "🇲🇽" },
+    { id: "BR", name: "Brazil", flag: "🇧🇷" }, { id: "AR", name: "Argentina", flag: "🇦🇷" },
+    { id: "CL", name: "Chile", flag: "🇨🇱" }, { id: "PE", name: "Peru", flag: "🇵🇪" },
+    { id: "ZA", name: "South Africa", flag: "🇿🇦" }, { id: "EG", name: "Egypt", flag: "🇪🇬" }
+  ];
+
+  const borders = [
+    ["CN", "RU"], ["CN", "IN"], ["CN", "MN"], ["CN", "KZ"], ["CN", "NP"], ["CN", "BT"], ["CN", "MM"],
+    ["CN", "LA"], ["CN", "VN"], ["CN", "PK"], ["CN", "AF"], ["CN", "TJ"], ["CN", "KG"], ["CN", "KP"],
+    ["RU", "MN"], ["RU", "KZ"], ["RU", "KP"], ["RU", "PL"], ["IN", "NP"], ["IN", "BT"], ["IN", "MM"],
+    ["IN", "BD"], ["IN", "PK"], ["MM", "TH"], ["MM", "LA"], ["LA", "VN"], ["LA", "TH"], ["LA", "KH"],
+    ["VN", "KH"], ["KP", "KR"], ["KZ", "KG"], ["KZ", "TJ"], ["AF", "TJ"], ["AF", "PK"], ["DE", "FR"],
+    ["DE", "PL"], ["DE", "CZ"], ["DE", "AT"], ["DE", "CH"], ["DE", "BE"], ["DE", "NL"], ["FR", "ES"],
+    ["FR", "IT"], ["FR", "CH"], ["FR", "BE"], ["ES", "PT"], ["IT", "CH"], ["IT", "AT"], ["CH", "AT"],
+    ["PL", "CZ"], ["US", "CA"], ["US", "MX"], ["MX", "CA"], ["BR", "AR"], ["BR", "PE"], ["AR", "CL"],
+    ["CL", "PE"], ["ZA", "EG"]
+  ];
+
+  const links = borders.map(([source, target]) => ({ source, target }));
+
+  const svg = d3.select("#chart");
+  const width = window.innerWidth;
+  const height = window.innerHeight - 92;
+  svg.attr("viewBox", [0, 0, width, height]);
+
+  const simulation = d3.forceSimulation(countries)
+    .force("link", d3.forceLink(links).id((d) => d.id).distance(90).strength(0.6))
+    .force("charge", d3.forceManyBody().strength(-260))
+    .force("center", d3.forceCenter(width / 2, height / 2))
+    .force("collide", d3.forceCollide(28));
+
+  const link = svg.append("g")
+    .attr("stroke-width", 1.4)
+    .selectAll("line")
+    .data(links)
+    .join("line")
+    .attr("class", "link");
+
+  const node = svg.append("g")
+    .selectAll("g")
+    .data(countries)
+    .join("g")
+    .attr("class", "node")
+    .call(d3.drag()
+      .on("start", (event, d) => { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+      .on("drag", (event, d) => { d.fx = event.x; d.fy = event.y; })
+      .on("end", (event, d) => { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }));
+
+  node.append("circle").attr("r", 16);
+  node.append("text").text((d) => d.flag).attr("dy", "0.35em");
+  node.append("text").attr("class", "label").text((d) => d.name).attr("dy", "2.6em");
+
+  const tip = document.getElementById("tip");
+  node.on("mousemove", (event, d) => {
+    tip.style.opacity = 1;
+    tip.style.left = event.clientX + 14 + "px";
+    tip.style.top = event.clientY + 14 + "px";
+    tip.textContent = d.name + " (" + links.filter((l) => l.source.id === d.id || l.target.id === d.id).length + " borders)";
+  }).on("mouseleave", () => { tip.style.opacity = 0; });
+
+  simulation.on("tick", () => {
+    link.attr("x1", (d) => d.source.x).attr("y1", (d) => d.source.y)
+        .attr("x2", (d) => d.target.x).attr("y2", (d) => d.target.y);
+    node.attr("transform", (d) => `translate(${d.x},${d.y})`);
+  });
+</script>
+</body>
+</html>
