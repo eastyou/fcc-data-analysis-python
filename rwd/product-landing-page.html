@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FocusFlow — Product Landing Page</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      color: #1f2a33;
+      background: #f7f9fb;
+      line-height: 1.65;
+    }
+    #header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 12px 26px;
+      background: #ffffff;
+      box-shadow: 0 2px 14px rgba(20, 40, 60, 0.08);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; }
+    #header-img { width: 38px; height: 38px; }
+    #nav-bar { display: flex; gap: 22px; flex-wrap: wrap; }
+    .nav-link {
+      color: #1f2a33;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+    .nav-link:hover { color: #2f7a5c; }
+    .hero {
+      text-align: center;
+      padding: 56px 20px 40px;
+      background: linear-gradient(150deg, #e7f2ec, #eef3f9);
+    }
+    .hero h1 { margin: 0 0 10px; font-size: clamp(1.9rem, 4.5vw, 2.7rem); }
+    .hero p { margin: 0; color: #4c5a66; }
+    section { max-width: 900px; margin: 0 auto; padding: 46px 22px; }
+    h2 { margin-top: 0; font-size: 1.5rem; }
+    .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; }
+    .card {
+      padding: 20px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 8px 22px rgba(20, 40, 60, 0.07);
+    }
+    .card h3 { margin-top: 0; }
+    #video {
+      display: block;
+      width: 100%;
+      max-width: 720px;
+      aspect-ratio: 16 / 9;
+      margin: 0 auto;
+      border: none;
+      border-radius: 12px;
+      background: #000;
+    }
+    .price {
+      display: inline-block;
+      padding: 22px 26px;
+      background: #fff;
+      border: 2px solid #2f7a5c;
+      border-radius: 12px;
+    }
+    #form { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+    #email {
+      flex: 1 1 260px;
+      max-width: 340px;
+      padding: 11px 14px;
+      border: 1px solid #cfd9e0;
+      border-radius: 8px;
+      font-size: 0.97rem;
+    }
+    #submit {
+      padding: 11px 22px;
+      border: none;
+      border-radius: 8px;
+      background: #2f7a5c;
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    footer { padding: 26px; text-align: center; color: #6b7a86; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <header id="header">
+    <div class="brand">
+      <img
+        id="header-img"
+        src="https://cdn-icons-png.flaticon.com/512/1827/1827392.png"
+        alt="FocusFlow logo"
+      />
+      FocusFlow
+    </div>
+    <nav id="nav-bar">
+      <a class="nav-link" href="#features">Features</a>
+      <a class="nav-link" href="#how-it-works">How it works</a>
+      <a class="nav-link" href="#pricing">Pricing</a>
+    </nav>
+  </header>
+
+  <div class="hero">
+    <h1>Deep work, made simple</h1>
+    <p>FocusFlow turns your goals into distraction-free sessions.</p>
+  </div>
+
+  <section id="features">
+    <h2>Features</h2>
+    <div class="features">
+      <div class="card">
+        <h3>Adaptive timers</h3>
+        <p>Sessions that stretch with your focus, not against it.</p>
+      </div>
+      <div class="card">
+        <h3>Quiet dashboard</h3>
+        <p>Only the numbers that matter, no noisy charts.</p>
+      </div>
+      <div class="card">
+        <h3>Daily recap</h3>
+        <p>A short summary of where your attention went.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="how-it-works">
+    <h2>How it works</h2>
+    <iframe
+      id="video"
+      src="https://www.youtube.com/embed/5qap5aO4i9A"
+      title="FocusFlow introduction"
+      allowfullscreen
+    ></iframe>
+  </section>
+
+  <section id="pricing">
+    <h2>Pricing</h2>
+    <div class="price">
+      <strong>$0</strong> forever for a single device.
+    </div>
+    <p>Join the newsletter to get launch updates:</p>
+    <form id="form" action="https://www.freecodecamp.com/email-submit">
+      <input id="email" name="email" type="email" placeholder="Enter your email address" required />
+      <input id="submit" type="submit" value="Get started" />
+    </form>
+  </section>
+
+  <footer>Built as a freeCodeCamp Responsive Web Design project.</footer>
+</body>
+</html>
